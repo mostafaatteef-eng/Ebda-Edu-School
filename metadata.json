@@ -1,0 +1,8 @@
+{
+  "name": "EBDA EDU - School Operations \u0026 Academic Monitoring",
+  "description": "Integrated School Management, Operations \u0026 Academic Monitoring System for EBDA School - Badr with full role-based portals, timetable builder, 60-min lesson tracking, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

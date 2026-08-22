@@ -1,0 +1,45 @@
+name: EBDA EDU Continuous Integration (CI)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  validate-and-test:
+    name: Lint, Test & Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      - name: 🛡️ Validate Schema & Relational Integrity
+        run: npm run validate:schema
+
+      - name: 🔍 TypeScript Lint & Typecheck
+        run: npm run typecheck
+
+      - name: 🧪 Execute Unit Tests
+        run: npm run test:unit
+
+      - name: 🧪 Execute Integration Tests (Conflict Engine)
+        run: npm run test:integration
+
+      - name: 🧪 Execute End-to-End Workflow Tests
+        run: npm run test:e2e
+
+      - name: 🏗️ Production Vite Build
+        run: npm run build
+        env:
+          NODE_ENV: production

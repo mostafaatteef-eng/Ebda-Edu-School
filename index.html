@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EBDA EDU | مدرسة ابدأ – بدر | نظام المتابعة التفاعلي وإدارة العمليات</title>
+    <meta name="description" content="نظام إلكتروني تفاعلي متكامل لإدارة وتشغيل ومتابعة مدرسة ابدأ - بدر - EBDA EDU School Operations & Academic Monitoring System" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var targetWindow = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+          if (!targetWindow) return;
+          var originalFetch = targetWindow.fetch ? targetWindow.fetch.bind(targetWindow) : undefined;
+          var currentFetch = originalFetch;
+
+          function defineFetchOn(obj) {
+            if (!obj) return;
+            try {
+              Object.defineProperty(obj, 'fetch', {
+                get: function() {
+                  return currentFetch;
+                },
+                set: function(fn) {
+                  currentFetch = fn;
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e) {}
+          }
+
+          defineFetchOn(targetWindow);
+          if (targetWindow.Window && targetWindow.Window.prototype) {
+            defineFetchOn(targetWindow.Window.prototype);
+          }
+        } catch (err) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-[#25A09F]/20 selection:text-[#25A09F]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
