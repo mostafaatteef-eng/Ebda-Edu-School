@@ -23,7 +23,7 @@ const UserService = {
     }
 
     const salt = Utils.generateUUID();
-    const initialPassword = userData.initialPassword || userData.password || 'Ebda@2026';
+    const initialPassword = userData.initialPassword || userData.password || Utils.generateSecureRandomPassword('Ebda');
     const passwordHash = Utils.hashPassword(initialPassword, salt);
 
     const record = {
@@ -133,7 +133,7 @@ const UserService = {
     const user = SpreadsheetService.findById('Users', userId);
     if (!user) throw new Error('المستخدم غير موجود.');
 
-    const tempPassword = 'Ebda' + Math.floor(100000 + Math.random() * 900000);
+    const tempPassword = Utils.generateSecureRandomPassword('Ebda');
     const salt = Utils.generateUUID();
     const passwordHash = Utils.hashPassword(tempPassword, salt);
 

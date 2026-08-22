@@ -58,6 +58,19 @@ export function verifyPasswordHash(plainPassword: string, storedHash: string, sa
 }
 
 /**
+ * Generates a cryptographically strong random temporary password for administrative resets.
+ */
+export function generateTemporaryPassword(prefix: string = 'Ebda'): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*';
+  let randStr = '';
+  for (let i = 0; i < 8; i++) {
+    randStr += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  const digits = Math.floor(100 + Math.random() * 900);
+  return `${prefix}@${randStr}${digits}`;
+}
+
+/**
  * Sanitizes a User object before exporting or sending in responses (stripping password hashes).
  */
 export function sanitizeUser<T extends { passwordHash?: string; password?: string }>(user: T): Omit<T, 'passwordHash' | 'password'> {

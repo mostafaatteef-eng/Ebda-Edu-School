@@ -51,7 +51,7 @@ import {
   isSlotOverlappingBreak,
   calculateBreakDuration,
 } from '../utils/businessRules';
-import { hashPassword, validatePassword, sanitizeUser } from '../utils/security';
+import { hashPassword, validatePassword, sanitizeUser, generateTemporaryPassword } from '../utils/security';
 
 interface AppContextType {
   // Authentication & Role
@@ -909,8 +909,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       passwordHash = hashPassword(data.initialPassword);
     } else if (!passwordHash) {
-      // Default initial password hashed
-      passwordHash = hashPassword('Ebda@2026');
+      // Cryptographically generated initial password hashed
+      const tempPass = generateTemporaryPassword('Ebda');
+      passwordHash = hashPassword(tempPass);
     }
 
     const newId = `u-${Date.now()}`;
@@ -965,7 +966,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resetUserPassword = (id: string): string => {
-    const newPass = `Ebda@${Math.floor(1000 + Math.random() * 9000)}`;
+    const newPass = generateTemporaryPassword('Ebda');
     const hashed = hashPassword(newPass);
     updateUser(id, { passwordHash: hashed });
     const u = allUsers.find((user) => user.id === id);

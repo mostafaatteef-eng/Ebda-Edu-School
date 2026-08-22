@@ -70,6 +70,20 @@ const Utils = {
   },
 
   /**
+   * Generates a cryptographically random temporary password with mixed-case, numbers, and symbols.
+   */
+  generateSecureRandomPassword: function (prefix) {
+    const p = prefix || 'Ebda';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*';
+    let randStr = '';
+    for (let i = 0; i < 8; i++) {
+      randStr += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const digits = Math.floor(100 + Math.random() * 900);
+    return p + '@' + randStr + digits;
+  },
+
+  /**
    * Parses JSON safely.
    */
   safeJsonParse: function (str, fallback) {

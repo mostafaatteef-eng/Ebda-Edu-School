@@ -65,10 +65,12 @@ function initializeEBDA() {
   Logger.log('✅ Google Drive Root Folder Initialized: ' + driveFolder.getName() + ' (ID: ' + driveFolder.getId() + ')');
 
   // 4. Create Initial Operations Manager Admin User if none exists
+  let initialAdminTempPassword = null;
   const existingUsers = SpreadsheetService.getAll('Users');
   if (existingUsers.length === 0) {
     const adminSalt = Utils.generateUUID();
-    const adminPasswordHash = Utils.hashPassword('Admin@Ebda2026', adminSalt);
+    initialAdminTempPassword = Utils.generateSecureRandomPassword('Admin');
+    const adminPasswordHash = Utils.hashPassword(initialAdminTempPassword, adminSalt);
     const adminUser = {
       id: 'usr-admin-01',
       username: 'admin',
@@ -84,6 +86,7 @@ function initializeEBDA() {
     };
     SpreadsheetService.insert('Users', adminUser);
     Logger.log('✅ Created Initial Operations Manager (Username: admin)');
+    Logger.log('🔑 TEMPORARY INITIAL ADMIN PASSWORD (PROVIDED ONLY ONCE): ' + initialAdminTempPassword);
   }
 
   Logger.log('✨ EBDA EDU Backend Initialization Complete!');
@@ -95,5 +98,7 @@ function initializeEBDA() {
     spreadsheetId: spreadsheet.getId(),
     spreadsheetUrl: spreadsheet.getUrl(),
     driveFolderId: driveFolder.getId(),
+    initialAdminUsername: 'admin',
+    initialAdminTempPassword: initialAdminTempPassword,
   };
 }
