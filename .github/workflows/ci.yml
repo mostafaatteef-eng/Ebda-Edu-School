@@ -2,9 +2,9 @@ name: EBDA EDU Continuous Integration (CI)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, master]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, master]
 
 jobs:
   validate-and-test:
@@ -30,16 +30,11 @@ jobs:
       - name: 🔍 TypeScript Lint & Typecheck
         run: npm run typecheck
 
-      - name: 🧪 Execute Unit Tests
-        run: npm run test:unit
-
-      - name: 🧪 Execute Integration Tests (Conflict Engine)
-        run: npm run test:integration
-
-      - name: 🧪 Execute End-to-End Workflow Tests
-        run: npm run test:e2e
+      - name: 🧪 Execute Test Suite
+        run: npm test
 
       - name: 🏗️ Production Vite Build
         run: npm run build
         env:
           NODE_ENV: production
+
