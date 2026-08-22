@@ -20,7 +20,7 @@ let allPassed = true;
 for (const suite of testSuites) {
   try {
     console.log(`\n▶️ Executing: ${suite.name}...`);
-    execSync(`tsx ${suite.script}`, { stdio: 'inherit' });
+    execSync(`npx tsx ${suite.script}`, { stdio: 'inherit' });
   } catch (error) {
     console.error(`\n❌ Test Suite Failed: ${suite.name}`);
     allPassed = false;
