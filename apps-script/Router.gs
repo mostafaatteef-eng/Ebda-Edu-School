@@ -104,6 +104,18 @@ const Router = {
           }
           return Utils.jsonSuccess(ClassService.createClass(body.classData || {}, currentUser));
 
+        case 'updateClass':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية تعديل الفصول مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess(ClassService.updateClass(body.id, body.updates || {}, currentUser));
+
+        case 'deleteClass':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية حذف الفصول مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess({ deleted: ClassService.deleteClass(body.id, currentUser) });
+
         case 'getGrades':
           return Utils.jsonSuccess(ClassService.getAllGrades());
 
@@ -115,6 +127,60 @@ const Router = {
             return Utils.jsonError('FORBIDDEN', 'صلاحية إضافة المواد مقتصرة على إدارة العمليات.', 403);
           }
           return Utils.jsonSuccess(SubjectService.createSubject(body.subject || {}, currentUser));
+
+        case 'updateSubject':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية تعديل المواد مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess(SubjectService.updateSubject(body.id, body.updates || {}, currentUser));
+
+        case 'deleteSubject':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية حذف المواد مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess({ deleted: SubjectService.deleteSubject(body.id, currentUser) });
+
+        case 'getLabs':
+          return Utils.jsonSuccess(LabWorkshopService.getAllLabs());
+
+        case 'createLab':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية إضافة المعامل مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess(LabWorkshopService.createLab(body.lab || {}, currentUser));
+
+        case 'updateLab':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية تعديل المعامل مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess(LabWorkshopService.updateLab(body.id, body.updates || {}, currentUser));
+
+        case 'deleteLab':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية حذف المعامل مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess({ deleted: LabWorkshopService.deleteLab(body.id, currentUser) });
+
+        case 'getWorkshops':
+          return Utils.jsonSuccess(LabWorkshopService.getAllWorkshops());
+
+        case 'createWorkshop':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية إضافة الورش مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess(LabWorkshopService.createWorkshop(body.workshop || {}, currentUser));
+
+        case 'updateWorkshop':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية تعديل الورش مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess(LabWorkshopService.updateWorkshop(body.id, body.updates || {}, currentUser));
+
+        case 'deleteWorkshop':
+          if (currentUser.role !== 'operations_manager') {
+            return Utils.jsonError('FORBIDDEN', 'صلاحية حذف الورش مقتصرة على إدارة العمليات.', 403);
+          }
+          return Utils.jsonSuccess({ deleted: LabWorkshopService.deleteWorkshop(body.id, currentUser) });
 
         case 'getLessons':
           return Utils.jsonSuccess(LessonService.getAllLessons(params.date || body.date));

@@ -8,6 +8,11 @@ import {
   User,
   SystemSettings,
   Teacher,
+  Subject,
+  SchoolClass,
+  Grade,
+  Lab,
+  Workshop,
   SchoolBreak,
   TimetableSlot,
   TeachingRecord,
@@ -198,6 +203,78 @@ class ApiClient {
 
   async getTeacherWorkload(teacherId?: string): Promise<ApiResponse<any>> {
     return this.request('getTeacherWorkload', { teacherId }, 'GET');
+  }
+
+  // Subjects
+  async getSubjects(): Promise<ApiResponse<Subject[]>> {
+    return this.request<Subject[]>('getSubjects', {}, 'GET');
+  }
+
+  async createSubject(subject: Omit<Subject, 'id'>): Promise<ApiResponse<Subject>> {
+    return this.request<Subject>('createSubject', { subject });
+  }
+
+  async updateSubject(id: string, updates: Partial<Subject>): Promise<ApiResponse<Subject>> {
+    return this.request<Subject>('updateSubject', { id, updates });
+  }
+
+  async deleteSubject(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    return this.request('deleteSubject', { id });
+  }
+
+  // Classes & Grades
+  async getClasses(): Promise<ApiResponse<SchoolClass[]>> {
+    return this.request<SchoolClass[]>('getClasses', {}, 'GET');
+  }
+
+  async createClass(classData: Omit<SchoolClass, 'id'>): Promise<ApiResponse<SchoolClass>> {
+    return this.request<SchoolClass>('createClass', { classData });
+  }
+
+  async updateClass(id: string, updates: Partial<SchoolClass>): Promise<ApiResponse<SchoolClass>> {
+    return this.request<SchoolClass>('updateClass', { id, updates });
+  }
+
+  async deleteClass(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    return this.request('deleteClass', { id });
+  }
+
+  async getGrades(): Promise<ApiResponse<Grade[]>> {
+    return this.request<Grade[]>('getGrades', {}, 'GET');
+  }
+
+  // Smart Labs
+  async getLabs(): Promise<ApiResponse<Lab[]>> {
+    return this.request<Lab[]>('getLabs', {}, 'GET');
+  }
+
+  async createLab(lab: Omit<Lab, 'id'>): Promise<ApiResponse<Lab>> {
+    return this.request<Lab>('createLab', { lab });
+  }
+
+  async updateLab(id: string, updates: Partial<Lab>): Promise<ApiResponse<Lab>> {
+    return this.request<Lab>('updateLab', { id, updates });
+  }
+
+  async deleteLab(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    return this.request('deleteLab', { id });
+  }
+
+  // Industrial Workshops
+  async getWorkshops(): Promise<ApiResponse<Workshop[]>> {
+    return this.request<Workshop[]>('getWorkshops', {}, 'GET');
+  }
+
+  async createWorkshop(workshop: Omit<Workshop, 'id'>): Promise<ApiResponse<Workshop>> {
+    return this.request<Workshop>('createWorkshop', { workshop });
+  }
+
+  async updateWorkshop(id: string, updates: Partial<Workshop>): Promise<ApiResponse<Workshop>> {
+    return this.request<Workshop>('updateWorkshop', { id, updates });
+  }
+
+  async deleteWorkshop(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    return this.request('deleteWorkshop', { id });
   }
 
   // Breaks

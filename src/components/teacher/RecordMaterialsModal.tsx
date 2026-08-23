@@ -147,16 +147,16 @@ export const RecordMaterialsModal: React.FC<RecordMaterialsModalProps> = ({
 
   const handleRemove = () => {
     if (!existingRecord) return;
-    if (confirm('هل أنت متأكد من رغبتك في إزالة رابط المواد التعليمية لهذه الحصة؟')) {
-      const res = updateMaterialsUrl(existingRecord.id, '');
-      if (res.success) {
-        setUrl('');
-        setSuccessMsg('تم حذف رابط المواد التعليمية بنجاح.');
-        setTimeout(() => {
-          if (onSuccess) onSuccess();
-          onClose();
-        }, 1200);
-      }
+    const res = updateMaterialsUrl(existingRecord.id, '');
+    if (res.success) {
+      setUrl('');
+      setSuccessMsg('تم حذف رابط المواد التعليمية بنجاح.');
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+        onClose();
+      }, 1000);
+    } else {
+      setError(res.error || 'حدث خطأ أثناء إزالة الرابط');
     }
   };
 

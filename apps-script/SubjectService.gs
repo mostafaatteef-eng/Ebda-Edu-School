@@ -54,4 +54,36 @@ const SubjectService = {
     });
     return created;
   },
+
+  updateSubject: function (id, updates, user) {
+    const updated = SpreadsheetService.update('Subjects', id, updates);
+    if (updated) {
+      AuditService.log({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'UPDATE_SUBJECT',
+        entityType: 'subject',
+        entityId: id,
+        description: 'تحديث بيانات المادة الدراسية: ' + (updated.nameAr || id),
+      });
+    }
+    return updated;
+  },
+
+  deleteSubject: function (id, user) {
+    const deleted = SpreadsheetService.deleteById('Subjects', id);
+    if (deleted) {
+      AuditService.log({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'DELETE_SUBJECT',
+        entityType: 'subject',
+        entityId: id,
+        description: 'حذف المادة الدراسية: ' + id,
+      });
+    }
+    return deleted;
+  },
 };

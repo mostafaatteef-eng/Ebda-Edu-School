@@ -54,4 +54,36 @@ const ClassService = {
     });
     return created;
   },
+
+  updateClass: function (id, updates, user) {
+    const updated = SpreadsheetService.update('Classes', id, updates);
+    if (updated) {
+      AuditService.log({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'UPDATE_CLASS',
+        entityType: 'class',
+        entityId: id,
+        description: 'تحديث بيانات الفصل: ' + (updated.nameAr || id),
+      });
+    }
+    return updated;
+  },
+
+  deleteClass: function (id, user) {
+    const deleted = SpreadsheetService.deleteById('Classes', id);
+    if (deleted) {
+      AuditService.log({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'DELETE_CLASS',
+        entityType: 'class',
+        entityId: id,
+        description: 'حذف الفصل الدراسي: ' + id,
+      });
+    }
+    return deleted;
+  },
 };

@@ -5,8 +5,10 @@
  */
 
 const SpreadsheetService = {
+  _cachedSS: null,
+
   /**
-   * 23 Core Schema Sheet Definitions with Column Headers
+   * 24 Core Schema Sheet Definitions with Column Headers
    */
   SHEET_SCHEMAS: {
     Users: ['id', 'username', 'name', 'role', 'email', 'phone', 'teacherId', 'parentId', 'status', 'passwordHash', 'salt', 'lastLoginAt', 'createdAt', 'updatedAt'],
@@ -18,7 +20,8 @@ const SpreadsheetService = {
     Classes: ['id', 'code', 'nameAr', 'gradeId', 'studentCount', 'roomNumber', 'schoolId', 'createdAt', 'updatedAt'],
     Subjects: ['id', 'code', 'nameAr', 'nameEn', 'gradeId', 'weeklyLessonsRequired', 'weeklyLessonsTarget', 'department', 'category', 'color', 'isPractical', 'preferredLocationType', 'schoolId', 'createdAt', 'updatedAt'],
     Rooms: ['id', 'code', 'nameAr', 'capacity', 'floor', 'building', 'status', 'schoolId', 'createdAt', 'updatedAt'],
-    Labs: ['id', 'code', 'nameAr', 'type', 'capacity', 'location', 'inChargeEngineer', 'equipmentSummary', 'schoolId', 'createdAt', 'updatedAt'],
+    Labs: ['id', 'code', 'nameAr', 'nameEn', 'type', 'capacity', 'location', 'inChargeEngineer', 'equipmentSummary', 'status', 'schoolId', 'createdAt', 'updatedAt'],
+    Workshops: ['id', 'code', 'nameAr', 'nameEn', 'type', 'capacity', 'location', 'inChargeEngineer', 'equipmentSummary', 'status', 'schoolId', 'createdAt', 'updatedAt'],
     Timetable: ['id', 'schoolId', 'academicYearId', 'dayOfWeek', 'slotIndex', 'startTime', 'endTime', 'durationMinutes', 'gradeId', 'classId', 'subjectId', 'teacherId', 'locationType', 'labId', 'workshopId', 'roomName', 'createdAt', 'updatedAt'],
     Lessons: ['id', 'timetableSlotId', 'date', 'dayOfWeek', 'slotIndex', 'startTime', 'endTime', 'teacherId', 'subjectId', 'classId', 'gradeId', 'status', 'createdAt', 'updatedAt'],
     TeachingRecords: ['id', 'timetableSlotId', 'schoolId', 'date', 'dayOfWeek', 'slotIndex', 'startTime', 'endTime', 'durationMinutes', 'teacherId', 'subjectId', 'gradeId', 'classId', 'locationType', 'labId', 'workshopId', 'roomName', 'lessonTopic', 'unitModule', 'lessonStatus', 'notCompletedReason', 'materialsUrl', 'teacherNotes', 'parentVisibility', 'recordedAt', 'lastUpdatedAt'],
@@ -35,19 +38,24 @@ const SpreadsheetService = {
   },
 
   /**
-   * Retrieves active Spreadsheet instance.
+   * Retrieves active Spreadsheet instance with execution context caching.
    */
   getSpreadsheet: function () {
+    if (this._cachedSS) {
+      return this._cachedSS;
+    }
     const props = PropertiesService.getScriptProperties();
     const sheetId = props.getProperty('SPREADSHEET_ID');
     if (sheetId) {
-      return SpreadsheetApp.openById(sheetId);
+      this._cachedSS = SpreadsheetApp.openById(sheetId);
+      return this._cachedSS;
     }
     // Fallback: active spreadsheet if bound
     try {
       const active = SpreadsheetApp.getActiveSpreadsheet();
       if (active) {
         props.setProperty('SPREADSHEET_ID', active.getId());
+        this._cachedSS = active;
         return active;
       }
     } catch (e) {
