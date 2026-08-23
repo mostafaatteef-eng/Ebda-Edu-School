@@ -371,8 +371,39 @@ export const SystemManagement: React.FC<SystemManagementProps> = ({ initialTab =
                       </div>
                     </td>
                     <td className="p-3.5 font-bold text-slate-700">{t.specialization}</td>
-                    <td className="p-3.5 text-center font-mono font-bold text-slate-900">
-                      {t.targetWeeklyLessons} ساعة أسبوعية (60 دقيقة)
+                    <td className="p-3.5 text-center">
+                      <div className="inline-flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = t.targetWeeklyLessons || 25;
+                            if (current > 1) {
+                              updateTeacher(t.id, { targetWeeklyLessons: current - 1 });
+                            }
+                          }}
+                          className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition cursor-pointer"
+                          title="إنقاص حصة / ساعة"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-black text-slate-900 px-1.5 min-w-[2.5rem] text-center">
+                          {t.targetWeeklyLessons}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = t.targetWeeklyLessons || 25;
+                            if (current < 45) {
+                              updateTeacher(t.id, { targetWeeklyLessons: current + 1 });
+                            }
+                          }}
+                          className="w-6 h-6 rounded-lg bg-white hover:bg-[#25A09F] hover:text-white text-slate-700 font-bold flex items-center justify-center transition cursor-pointer"
+                          title="زيادة حصة / ساعة"
+                        >
+                          +
+                        </button>
+                        <span className="text-[10px] text-slate-500 font-medium mr-1">حصة/ساعة</span>
+                      </div>
                     </td>
                     <td className="p-3.5 text-slate-500 font-mono text-[11px]">
                       <div>{t.email || '—'}</div>
@@ -435,8 +466,39 @@ export const SystemManagement: React.FC<SystemManagementProps> = ({ initialTab =
                     </td>
                     <td className="p-3.5 font-mono font-bold text-[#25A09F]">{s.code}</td>
                     <td className="p-3.5 font-bold text-slate-700">{gradeMap.get(s.gradeId)?.nameAr}</td>
-                    <td className="p-3.5 text-center font-bold text-slate-900">
-                      {s.weeklyLessonsTarget || s.weeklyLessonsRequired || 4} حصص (60 دقيقة)
+                    <td className="p-3.5 text-center">
+                      <div className="inline-flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = s.weeklyLessonsRequired || s.weeklyLessonsTarget || 4;
+                            if (current > 1) {
+                              updateSubject(s.id, { weeklyLessonsRequired: current - 1, weeklyLessonsTarget: current - 1 });
+                            }
+                          }}
+                          className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition cursor-pointer"
+                          title="إنقاص حصة أسبوعية"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-black text-slate-900 px-1.5 min-w-[2.5rem] text-center">
+                          {s.weeklyLessonsRequired || s.weeklyLessonsTarget || 4}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = s.weeklyLessonsRequired || s.weeklyLessonsTarget || 4;
+                            if (current < 20) {
+                              updateSubject(s.id, { weeklyLessonsRequired: current + 1, weeklyLessonsTarget: current + 1 });
+                            }
+                          }}
+                          className="w-6 h-6 rounded-lg bg-white hover:bg-[#25A09F] hover:text-white text-slate-700 font-bold flex items-center justify-center transition cursor-pointer"
+                          title="زيادة حصة أسبوعية"
+                        >
+                          +
+                        </button>
+                        <span className="text-[10px] text-slate-500 font-medium mr-1">حصص</span>
+                      </div>
                     </td>
                     <td className="p-3.5 text-center">
                       <Badge variant="primary" size="sm">

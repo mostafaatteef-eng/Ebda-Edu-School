@@ -63,7 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const {
     currentUser,
     allUsers,
-    switchUser,
     updateUser,
     logout,
     activeSchool,
@@ -72,7 +71,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     settings,
   } = useApp();
 
-  const [isSwitchUserOpen, setIsSwitchUserOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   // Profile Edit Form State
@@ -412,49 +410,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* User Card & Profile at Bottom of Sidebar (No Top Bar Design Requirement) */}
+        {/* User Card & Profile at Bottom of Sidebar */}
         <div className="p-3 border-t border-white/10 bg-black/15 space-y-2">
-          {/* Quick Demo Role Switcher Drawer Popover */}
-          {isSwitchUserOpen && (
-            <div className="p-2.5 mb-2 rounded-2xl bg-white text-slate-800 shadow-xl border border-slate-200 text-xs space-y-1.5 animate-fadeIn">
-              <div className="text-[10px] font-black text-slate-400 px-2 pb-1 border-b border-slate-100 flex items-center justify-between">
-                <span>التبديل السريع للحساب (Demo Switcher)</span>
-                <span className="text-[9px] text-[#25A09F]">EBDA Accounts</span>
-              </div>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {allUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => {
-                      switchUser(u.id);
-                      setIsSwitchUserOpen(false);
-                    }}
-                    className={`w-full text-right p-2 rounded-xl flex items-center justify-between text-xs transition ${
-                      u.id === currentUser.id
-                        ? 'bg-teal-50 text-[#1E807F] font-bold border border-teal-200'
-                        : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div>
-                      <p className="font-bold text-xs leading-tight">{u.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">
-                        {u.role === 'operations_manager'
-                          ? 'مدير العمليات'
-                          : u.role === 'teacher'
-                          ? 'معلم'
-                          : 'ولي أمر'}
-                      </p>
-                    </div>
-                    {u.id === currentUser.id && (
-                      <span className="w-2 h-2 rounded-full bg-[#25A09F]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* User Profile Summary Card */}
           <div className="p-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 overflow-hidden">
@@ -496,16 +453,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="p-1.5 rounded-xl bg-white/15 hover:bg-white/30 text-white transition cursor-pointer"
               >
                 <Edit2 className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Switch User Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsSwitchUserOpen(!isSwitchUserOpen)}
-                title="تبديل الحساب"
-                className="p-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white transition shrink-0 cursor-pointer"
-              >
-                <ChevronDown className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

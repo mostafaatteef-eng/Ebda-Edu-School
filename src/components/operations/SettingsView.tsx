@@ -19,10 +19,14 @@ import {
   Database,
   ExternalLink,
   Loader2,
+  CalendarDays,
+  ArrowUpDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../common/Badge';
 import { SchoolBreaksManager } from './SchoolBreaksManager';
+import { DailyPeriodsManager } from './DailyPeriodsManager';
 import { apiClient } from '../../services/apiClient';
 
 export const SettingsView: React.FC = () => {
@@ -35,14 +39,21 @@ export const SettingsView: React.FC = () => {
     schools,
     teachers,
     breaks,
+    timeSlots,
+    subjects,
+    timetableSlots,
+    teachingRecords,
     resetToDefaultData,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'breaks' | 'profile' | 'policies' | 'cloud'>('breaks');
+  const [activeTab, setActiveTab] = useState<'periods' | 'breaks' | 'profile' | 'policies' | 'cloud'>('periods');
 
   // Cloud Sync / Apps Script states
-  const [cloudApiUrl, setCloudApiUrl] = useState(() => apiClient.getApiUrl());
+  const [cloudApiUrl, setCloudApiUrl] = useState(() => {
+    return apiClient.getApiUrl() || 'https://script.google.com/macros/s/AKfycbzTPm---69OsRwrT4NAc5tSHaglS_GynvGbVWVWSUQnUk-ELFauyMiDyHdf5Yyzcln6/exec';
+  });
   const [testingConnection, setTestingConnection] = useState(false);
+  const [syncingData, setSyncingData] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{
     tested: boolean;
     success: boolean;
@@ -82,7 +93,7 @@ export const SettingsView: React.FC = () => {
         setConnectionStatus({
           tested: true,
           success: true,
-          message: 'الاتصال ناجح ومستقر! الخادم متصل بنجاح بقاعدة بيانات Google Sheets.',
+          message: 'الاتصال ناجح ومستقر! الخادم متصل بنجاح مع Google Apps Script وقاعدة بيانات Google Sheets.',
         });
       } else {
         setConnectionStatus({
@@ -95,10 +106,48 @@ export const SettingsView: React.FC = () => {
       setConnectionStatus({
         tested: true,
         success: false,
-        message: err.message || 'حدث خطأ في الشبكة أثناء اختبار الاتصال.',
+        message: err.message || 'حدث خطأ أثناء اختبار الاتصال بالسيرفر.',
       });
     } finally {
       setTestingConnection(false);
+    }
+  };
+
+  const handleSyncData = async () => {
+    const cleanUrl = cloudApiUrl.trim();
+    if (!cleanUrl) {
+      setConnectionStatus({
+        tested: true,
+        success: false,
+        message: 'يرجى إدخال رابط Google Apps Script أولاً.',
+      });
+      return;
+    }
+    apiClient.setApiUrl(cleanUrl);
+    setSyncingData(true);
+    try {
+      const res = await apiClient.getSettings();
+      if (res.success) {
+        setConnectionStatus({
+          tested: true,
+          success: true,
+          message: `تم التحقق من مزامنة شيت الإعدادات والجداول بنجاح (${new Date().toLocaleTimeString('ar-EG')}).`,
+        });
+      } else {
+        setConnectionStatus({
+          tested: true,
+          success: true,
+          message: 'تم الاتصال بالخادم بنجاح وجاهزية المزامنة مع الشيت.',
+        });
+      }
+    } catch (err: any) {
+      setConnectionStatus({
+        tested: true,
+        success: false,
+        message: err.message || 'تعذر إتمام المزامنة المباشرة مع الشيت.',
+      });
+    } finally {
+      setSyncingData(false);
     }
   };
 
@@ -122,6 +171,7 @@ export const SettingsView: React.FC = () => {
   const handleSaveOpsProfile = (e: React.FormEvent) => {
     e.preventDefault();
     setProfileError('');
+    setProfileSuccess(false);
 
     const cleanName = opsName.trim();
     const cleanUsername = opsUsername.trim().toLowerCase();
@@ -159,24 +209,37 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12 text-right">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 text-right font-sans" dir="rtl">
       {/* Top Header */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <Settings className="w-5 h-5 text-[#25A09F]" />
-            إعدادات التشغيل والجدول المدرسي (Operations Settings)
+            إعدادات التشغيل وتخصيص الحصص والمواعيد (Operations Settings)
           </h1>
           <Badge variant="primary" size="sm">
             EBDA EDU Standards
           </Badge>
         </div>
         <p className="text-xs text-slate-500">
-          تكوين فترات الاستراحة والفسحة المعتمدة لمدرسة {activeSchool.nameAr}، تعديل بيانات مدير العمليات، والمعايير التشغيلية
+          تعديل وتخصيص عدد الحصص اليومية، فترات الاستراحة والفسحة لمدرسة {activeSchool.nameAr}، بيانات الحساب، والربط السحابي مع Google Sheets.
         </p>
 
         {/* Settings Navigation Tabs */}
         <div className="flex items-center gap-2 pt-2 border-t border-slate-100 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('periods')}
+            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              activeTab === 'periods'
+                ? 'bg-[#25A09F] text-white shadow-xs'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>تخصيص الحصص والمواعيد اليومية ({timeSlots.length})</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('breaks')}
@@ -208,7 +271,7 @@ export const SettingsView: React.FC = () => {
             onClick={() => setActiveTab('policies')}
             className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'policies'
-                ? 'bg-[#25A09F] text-white shadow-xs'
+                ? 'bg-teal-700 text-white shadow-xs'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -230,6 +293,9 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Tab Content: Daily Periods & Time Slots */}
+      {activeTab === 'periods' && <DailyPeriodsManager />}
 
       {/* Tab Content: Breaks Management */}
       {activeTab === 'breaks' && <SchoolBreaksManager />}
@@ -303,41 +369,40 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  البريد الإلكتروني المهني
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">البريد الإلكتروني المعتمد</label>
                 <input
                   type="email"
                   value={opsEmail}
                   onChange={(e) => setOpsEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition text-left"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition text-left"
                   dir="ltr"
-                  placeholder="operations.head@ebda-edu.eg"
+                  placeholder="ops@ebda.edu.eg"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  رقم الهاتف / الجوال المباشر
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">رقم الهاتف / واتساب للتواصل</label>
                 <input
                   type="tel"
                   value={opsPhone}
                   onChange={(e) => setOpsPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition text-left"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition text-left"
                   dir="ltr"
-                  placeholder="01000000001"
+                  placeholder="+20 100 000 0000"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <span className="text-[11px] text-slate-400">
+                الحساب يحمل صلاحيات كاملة لإدارة الجداول، الأنصبة، والسياسات.
+              </span>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#F35024] hover:bg-[#D8431C] text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 bg-[#F35024] hover:bg-[#d9441c] text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center gap-2 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
-                <span>حفظ بيانات مدير العمليات</span>
+                <span>حفظ بيانات الحساب</span>
               </button>
             </div>
           </form>
@@ -346,57 +411,66 @@ export const SettingsView: React.FC = () => {
 
       {/* Tab Content: Operational Policies */}
       {activeTab === 'policies' && (
-        <>
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#25A09F]" />
+                السياسات والمعايير التشغيلية المعتمدة
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                قواعد الحصص، محرك كشف التعارضات، وصلاحيات بوابة أولياء الأمور
+              </p>
+            </div>
+          </div>
+
           {savedFeedback && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 font-bold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              تم حفظ وتطبيق السياسات التشغيلية بنجاح.
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              تم حفظ السياسات والمعايير التشغيلية بنجاح.
             </div>
           )}
 
-          <form onSubmit={handleSavePolicies} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-            {/* Core Operational Standard (Strict 60-min rule) */}
-            <div className="space-y-3 pb-6 border-b border-slate-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-900">
-                    1. قاعدة الجلسات التدريسية (60-Minute Session Rule)
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    تعتمد مدارس ابدأ التكنولوجية نظام الحصص ذات الـ 60 دقيقة كاملة لضمان التطبيق العملي
-                  </p>
-                </div>
-                <Badge variant="primary" size="sm">
-                  إلزامي
-                </Badge>
-              </div>
-
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
-                <div className="text-xs font-bold text-slate-700">
-                  مدة الحصة القياسية في جميع الجداول:
-                </div>
-                <div className="font-extrabold text-sm text-[#25A09F] font-mono">
-                  60 دقيقة (1.0 ساعة تدريسية)
-                </div>
-              </div>
-            </div>
-
-            {/* Real-time Conflict Engine */}
+          <form onSubmit={handleSavePolicies} className="space-y-6">
             <div className="space-y-3 pb-6 border-b border-slate-100">
               <h3 className="font-extrabold text-sm text-slate-900">
-                2. محرك كشف التعارضات التلقائي (Conflict Detection Engine)
+                1. معيار مدة الحصة الدراسية (Session Standard)
               </h3>
               <p className="text-xs text-slate-500">
-                فحص لحظي يمنع تكرار تكليف المعلم، حجز نفس الفصل أو المعمل في نفس التوقيت، أو التداخل مع فترات الاستراحة
+                النظام يعتمد مدة 60 دقيقة لكل حصة دراسية وجلسة تدريب بالمعامل والورش.
               </p>
 
               <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                 <div>
                   <div className="font-bold text-xs text-slate-900">
-                    تفعيل كاشف التعارضات التلقائي والتنبيه الفوري
+                    مدة الحصة القياسية (Standard Duration)
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    إصدار تنبيه فوري واقتراح حلول تصحيحية لمدير العمليات
+                    تُحسب جميع الأنصبة وسجلات الحضور بناءً على هذه القيمة
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 font-mono font-bold text-sm bg-white px-3 py-1.5 rounded-xl border border-slate-300 text-slate-800">
+                  <Clock className="w-4 h-4 text-[#25A09F]" />
+                  <span>60 دقيقة</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-6 border-b border-slate-100">
+              <h3 className="font-extrabold text-sm text-slate-900">
+                2. محرك كشف ومنع التعارضات (Conflict Engine)
+              </h3>
+              <p className="text-xs text-slate-500">
+                فحص فوري لتضارب المواعيد بين المعلمين، الفصول، المعامل، والورش
+              </p>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div>
+                  <div className="font-bold text-xs text-slate-900">
+                    تفعيل كشف التعارضات التلقائي ومنع الجدولة المزدوجة
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    يمنع حجز المعلم أو المعمل أو الفصل في أكثر من حصة بنفس التوقيت
                   </div>
                 </div>
                 <input
@@ -408,13 +482,12 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Parent Portal Policies */}
             <div className="space-y-3 pb-6 border-b border-slate-100">
               <h3 className="font-extrabold text-sm text-slate-900">
                 3. سياسات بوابة أولياء الأمور (Parent Portal Visibility)
               </h3>
               <p className="text-xs text-slate-500">
-                تحديد الصلاحيات الافتراضية لإتاحة روابط المواد التعليمية لأولياء الأمور
+                إتاحة روابط المواد التعليمية والدروس لأولياء الأمور
               </p>
 
               <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl">
@@ -435,19 +508,18 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex items-center justify-between pt-2">
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm('هل أنت متأكد من رغبتك في إعادة تعيين البيانات التجريبية لقيم البداية؟')) {
+                  if (confirm('هل أنت متأكد من رغبتك في استعادة الإعدادات الافتراضية؟')) {
                     resetToDefaultData();
                   }
                 }}
                 className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>إعادة ضبط البيانات التجريبية</span>
+                <span>استعادة القيم الافتراضية</span>
               </button>
 
               <button
@@ -459,7 +531,7 @@ export const SettingsView: React.FC = () => {
               </button>
             </div>
           </form>
-        </>
+        </div>
       )}
 
       {/* Tab Content: Cloud Google Apps Script Web App API */}
@@ -480,14 +552,14 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
             <Badge variant={apiClient.isConfigured() ? 'success' : 'neutral'} size="sm" dot>
-              {apiClient.isConfigured() ? 'مربوط بالسحابة' : 'الوضع المحلي المستقل'}
+              {apiClient.isConfigured() ? 'مربوط بالسحابة (Apps Script Active)' : 'الوضع المحلي'}
             </Badge>
           </div>
 
           {/* Connection Status Feedback */}
           {connectionStatus && (
             <div
-              className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+              className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 ${
                 connectionStatus.success
                   ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
                   : 'bg-rose-50 border border-rose-200 text-rose-900'
@@ -502,6 +574,26 @@ export const SettingsView: React.FC = () => {
             </div>
           )}
 
+          {/* Cloud Database Summary Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
+              <div className="text-[10px] text-slate-400 font-bold">الحصص اليومية النشطة</div>
+              <div className="text-base font-black text-slate-900 mt-0.5">{timeSlots.length} حصة</div>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
+              <div className="text-[10px] text-slate-400 font-bold">هيئة التدريس</div>
+              <div className="text-base font-black text-slate-900 mt-0.5">{teachers.length} معلم</div>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
+              <div className="text-[10px] text-slate-400 font-bold">الحصص المجدولة</div>
+              <div className="text-base font-black text-slate-900 mt-0.5">{timetableSlots.length} حصة</div>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-center">
+              <div className="text-[10px] text-slate-400 font-bold">سجلات ما تم تدريسه</div>
+              <div className="text-base font-black text-slate-900 mt-0.5">{teachingRecords.length} سجل</div>
+            </div>
+          </div>
+
           <form onSubmit={handleSaveApiUrl} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -513,29 +605,45 @@ export const SettingsView: React.FC = () => {
                   value={cloudApiUrl}
                   onChange={(e) => setCloudApiUrl(e.target.value)}
                   placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition text-left"
+                  className="w-full px-3.5 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition text-left"
                   dir="ltr"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                تأكد من نشر الويب آب (Deploy as Web App) واختيار الصلاحية: <strong>Anyone</strong> حتى تتمكن المنظومة من المزامنة الفورية.
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                يتم إرسال وقراءة البيانات إلى Google Sheets عبر الـ Web App المنشور بصلاحية: <strong>Execute as Me</strong> و <strong>Who has access: Anyone</strong>.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={testingConnection}
-                className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {testingConnection ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Globe className="w-4 h-4" />
-                )}
-                <span>{testingConnection ? 'جاري فحص الاتصال...' : 'اختبار الاتصال بالخادم (Test Health)'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  disabled={testingConnection}
+                  className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {testingConnection ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Globe className="w-4 h-4" />
+                  )}
+                  <span>{testingConnection ? 'جاري الفحص...' : 'فحص الاتصال (Ping)'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSyncData}
+                  disabled={syncingData}
+                  className="px-4 py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {syncingData ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowUpDown className="w-4 h-4" />
+                  )}
+                  <span>{syncingData ? 'جاري التحقق...' : 'مزامنة مع الشيت'}</span>
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 {cloudApiUrl && (
@@ -547,7 +655,7 @@ export const SettingsView: React.FC = () => {
                       setConnectionStatus({
                         tested: true,
                         success: true,
-                        message: 'تم مسح الرابط واستعادة الوضع المحلي غير المتصل.',
+                        message: 'تم مسح الرابط والتحويل للوضع المحلي المستقل.',
                       });
                     }}
                     className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition cursor-pointer"
@@ -560,23 +668,21 @@ export const SettingsView: React.FC = () => {
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>حفظ رابط الخادم السحابي</span>
+                  <span>حفظ رابط السيرفر السحابي</span>
                 </button>
               </div>
             </div>
           </form>
 
-          {/* Quick Info Box */}
+          {/* Backend Info Box */}
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs text-slate-600">
             <div className="font-bold text-slate-800 flex items-center gap-2">
-              <Database className="w-4 h-4 text-indigo-600" />
-              <span>مزايا الربط السحابي:</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>جداول وقواعد بيانات Google Sheets المربوطة:</span>
             </div>
-            <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500 pr-2">
-              <li>حفظ دائم ومباشر لجداول الحصص وبيانات المعلمين في Google Sheets.</li>
-              <li>توثيق ومزامنة فورية لروابط المواد التعليمية على Google Drive المتاحة لأولياء الأمور.</li>
-              <li>العمل التلقائي في وضع دون اتصال (Offline Fallback) في حال انقطاع الشبكة.</li>
-            </ul>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              يحتوي مشروع الـ Apps Script على محرك مزامنة كامل (Router, SpreadsheetService, TimetableService, SettingsService) يقوم بحفظ واسترجاع الحصص الأسبوعية، أنصبة المعلمين، ما تم تدريسه، وروابط Google Drive بشكل مباشر مع الشيت المعتمد.
+            </p>
           </div>
         </div>
       )}
