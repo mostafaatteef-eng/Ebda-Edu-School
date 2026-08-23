@@ -14,10 +14,16 @@ import {
   KeyRound,
   ShieldCheck,
   Coffee,
+  Cloud,
+  Globe,
+  Database,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../common/Badge';
 import { SchoolBreaksManager } from './SchoolBreaksManager';
+import { apiClient } from '../../services/apiClient';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -32,7 +38,69 @@ export const SettingsView: React.FC = () => {
     resetToDefaultData,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'breaks' | 'profile' | 'policies'>('breaks');
+  const [activeTab, setActiveTab] = useState<'breaks' | 'profile' | 'policies' | 'cloud'>('breaks');
+
+  // Cloud Sync / Apps Script states
+  const [cloudApiUrl, setCloudApiUrl] = useState(() => apiClient.getApiUrl());
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{
+    tested: boolean;
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  const handleSaveApiUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUrl = cloudApiUrl.trim();
+    apiClient.setApiUrl(cleanUrl);
+    setConnectionStatus({
+      tested: true,
+      success: true,
+      message: cleanUrl
+        ? 'تم حفظ وتحديث رابط الـ Web App API بنجاح.'
+        : 'تمت إزالة الرابط والتحويل للوضع المحلي (Local Offline Mode).',
+    });
+  };
+
+  const handleTestConnection = async () => {
+    const cleanUrl = cloudApiUrl.trim();
+    if (!cleanUrl) {
+      setConnectionStatus({
+        tested: true,
+        success: false,
+        message: 'يرجى إدخال رابط Google Apps Script Web App أولاً.',
+      });
+      return;
+    }
+    apiClient.setApiUrl(cleanUrl);
+    setTestingConnection(true);
+    setConnectionStatus(null);
+
+    try {
+      const res = await apiClient.healthCheck();
+      if (res.success) {
+        setConnectionStatus({
+          tested: true,
+          success: true,
+          message: 'الاتصال ناجح ومستقر! الخادم متصل بنجاح بقاعدة بيانات Google Sheets.',
+        });
+      } else {
+        setConnectionStatus({
+          tested: true,
+          success: false,
+          message: res.error?.message || res.message || 'فشل الاتصال بالرابط، يرجى التأكد من نشر الـ Web App بصلاحية "Anyone".',
+        });
+      }
+    } catch (err: any) {
+      setConnectionStatus({
+        tested: true,
+        success: false,
+        message: err.message || 'حدث خطأ في الشبكة أثناء اختبار الاتصال.',
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   // Find operations manager user (either current user or 'u-ops')
   const opsUser = allUsers.find((u) => u.role === 'operations_manager') || currentUser;
@@ -146,6 +214,19 @@ export const SettingsView: React.FC = () => {
           >
             <ShieldCheck className="w-4 h-4" />
             <span>السياسات والمعايير التشغيلية</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('cloud')}
+            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              activeTab === 'cloud'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Cloud className="w-4 h-4" />
+            <span>الربط السحابي (Google Apps Script API)</span>
           </button>
         </div>
       </div>
@@ -379,6 +460,125 @@ export const SettingsView: React.FC = () => {
             </div>
           </form>
         </>
+      )}
+
+      {/* Tab Content: Cloud Google Apps Script Web App API */}
+      {activeTab === 'cloud' && (
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                <Cloud className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  ربط الخادم وقاعدة البيانات السحابية (Google Apps Script Web App)
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  مزامنة بيانات الجداول المدرسية، المعلمين، المعامل، والتوثيق مباشرة مع Google Sheets
+                </p>
+              </div>
+            </div>
+            <Badge variant={apiClient.isConfigured() ? 'success' : 'neutral'} size="sm" dot>
+              {apiClient.isConfigured() ? 'مربوط بالسحابة' : 'الوضع المحلي المستقل'}
+            </Badge>
+          </div>
+
+          {/* Connection Status Feedback */}
+          {connectionStatus && (
+            <div
+              className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+                connectionStatus.success
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
+                  : 'bg-rose-50 border border-rose-200 text-rose-900'
+              }`}
+            >
+              {connectionStatus.success ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span>{connectionStatus.message}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveApiUrl} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                رابط تطبيق الويب (Google Apps Script Web App Exec URL)
+              </label>
+              <div className="relative">
+                <input
+                  type="url"
+                  value={cloudApiUrl}
+                  onChange={(e) => setCloudApiUrl(e.target.value)}
+                  placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition text-left"
+                  dir="ltr"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                تأكد من نشر الويب آب (Deploy as Web App) واختيار الصلاحية: <strong>Anyone</strong> حتى تتمكن المنظومة من المزامنة الفورية.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={testingConnection}
+                className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {testingConnection ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Globe className="w-4 h-4" />
+                )}
+                <span>{testingConnection ? 'جاري فحص الاتصال...' : 'اختبار الاتصال بالخادم (Test Health)'}</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                {cloudApiUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCloudApiUrl('');
+                      apiClient.setApiUrl('');
+                      setConnectionStatus({
+                        tested: true,
+                        success: true,
+                        message: 'تم مسح الرابط واستعادة الوضع المحلي غير المتصل.',
+                      });
+                    }}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                  >
+                    مسح الرابط
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>حفظ رابط الخادم السحابي</span>
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Quick Info Box */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs text-slate-600">
+            <div className="font-bold text-slate-800 flex items-center gap-2">
+              <Database className="w-4 h-4 text-indigo-600" />
+              <span>مزايا الربط السحابي:</span>
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500 pr-2">
+              <li>حفظ دائم ومباشر لجداول الحصص وبيانات المعلمين في Google Sheets.</li>
+              <li>توثيق ومزامنة فورية لروابط المواد التعليمية على Google Drive المتاحة لأولياء الأمور.</li>
+              <li>العمل التلقائي في وضع دون اتصال (Offline Fallback) في حال انقطاع الشبكة.</li>
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

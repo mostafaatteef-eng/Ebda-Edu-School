@@ -37,9 +37,27 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    this.apiUrl = (import.meta.env.VITE_API_URL || '').trim();
+    // Check localStorage first, then fallback to environment variable or active deployment URL
+    const savedUrl = typeof window !== 'undefined' ? localStorage.getItem('ebda_apps_script_url') : null;
+    const defaultDeploymentUrl = 'https://script.google.com/macros/s/AKfycbzTPm---69OsRwrT4NAc5tSHaglS_GynvGbVWVWSUQnUk-ELFauyMiDyHdf5Yyzcln6/exec';
+    this.apiUrl = (savedUrl || import.meta.env.VITE_API_URL || defaultDeploymentUrl).trim();
     if (typeof window !== 'undefined') {
       this.token = sessionStorage.getItem('ebda_session_token');
+    }
+  }
+
+  public getApiUrl(): string {
+    return this.apiUrl;
+  }
+
+  public setApiUrl(url: string) {
+    this.apiUrl = (url || '').trim();
+    if (typeof window !== 'undefined') {
+      if (this.apiUrl) {
+        localStorage.setItem('ebda_apps_script_url', this.apiUrl);
+      } else {
+        localStorage.removeItem('ebda_apps_script_url');
+      }
     }
   }
 
@@ -128,6 +146,11 @@ class ApiClient {
         },
       };
     }
+  }
+
+  // Health check / Ping
+  async healthCheck(): Promise<ApiResponse<{ status: string; timestamp: string }>> {
+    return this.request('healthCheck', {}, 'GET');
   }
 
   // Authentication
