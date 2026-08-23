@@ -348,7 +348,7 @@ export const SettingsView: React.FC = () => {
                   value={opsName}
                   onChange={(e) => setOpsName(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-900 font-bold focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition"
-                  placeholder="أ/ شريف علام"
+                  placeholder="أ/ مصطفى عاطف"
                   required
                 />
               </div>
@@ -363,7 +363,7 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setOpsUsername(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition text-left"
                   dir="ltr"
-                  placeholder="admin"
+                  placeholder="mostafa@atef"
                   required
                 />
               </div>
@@ -376,7 +376,7 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setOpsEmail(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#25A09F] transition text-left"
                   dir="ltr"
-                  placeholder="ops@ebda.edu.eg"
+                  placeholder="mostafa@atef"
                 />
               </div>
 

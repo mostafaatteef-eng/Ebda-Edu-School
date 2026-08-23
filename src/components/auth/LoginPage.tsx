@@ -62,7 +62,7 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-          مدرسة ابدأ – بدر للعلوم والتكنولوجيا التطبيقية
+          مدرسة ابدأ - للعلوم التقنية - بدر
         </h1>
         <p className="mt-1.5 text-xs sm:text-sm font-medium text-teal-300/90">
           National Technical Science Schools • Academic Operations & Monitoring
@@ -71,23 +71,20 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
         <div className="bg-white/95 backdrop-blur-xl py-8 px-6 sm:px-10 shadow-2xl rounded-3xl border border-white/20 space-y-6">
-          {/* Institution Selector */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-[#25A09F]" />
-              <span className="text-xs font-bold text-slate-700">المؤسسة التعليمية:</span>
+          {/* School Badge */}
+          <div className="p-3.5 bg-gradient-to-r from-teal-50/80 to-slate-50 border border-teal-200/60 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#25A09F]/10 flex items-center justify-center text-[#25A09F] shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-black text-slate-800">مدرسة ابدأ - للعلوم التقنية - بدر</div>
+                <div className="text-[10px] text-teal-700 font-medium">National Technical Science Schools • Badr</div>
+              </div>
             </div>
-            <select
-              value={activeSchool.id}
-              onChange={(e) => setActiveSchoolId(e.target.value)}
-              className="text-xs font-extrabold text-slate-900 bg-white border border-slate-300 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-[#25A09F] focus:outline-hidden"
-            >
-              {schools.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nameAr} ({s.city})
-                </option>
-              ))}
-            </select>
+            <Badge variant="primary" size="sm">
+              معتمدة
+            </Badge>
           </div>
 
           <div className="text-center space-y-1">
@@ -118,7 +115,7 @@ export const LoginPage: React.FC = () => {
                   type="text"
                   value={usernameOrEmail}
                   onChange={(e) => setUsernameOrEmail(e.target.value)}
-                  placeholder="admin أو user@ebda.edu.eg"
+                  placeholder="mostafa@atef"
                   className="w-full text-xs font-bold bg-slate-50 focus:bg-white border border-slate-300 rounded-xl pr-10 pl-3.5 py-3 focus:ring-2 focus:ring-[#25A09F] focus:outline-hidden transition"
                   dir="ltr"
                   autoComplete="username"
