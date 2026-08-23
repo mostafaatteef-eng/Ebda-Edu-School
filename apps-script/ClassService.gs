@@ -2,7 +2,7 @@
  * EBDA EDU — Class & Academic Grade Management Service
  */
 
-const ClassService = {
+var ClassService = {
   getAllClasses: function () {
     return SpreadsheetService.getAll('Classes').map(function (c) {
       return {
@@ -33,7 +33,7 @@ const ClassService = {
     if (!data.nameAr || !data.gradeId) {
       throw new Error('اسم الفصل والمرحلة الدراسية حقول مطلوبة.');
     }
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       code: data.code || '',
       nameAr: data.nameAr,
@@ -42,48 +42,61 @@ const ClassService = {
       roomNumber: data.roomNumber || '',
       schoolId: data.schoolId || 'badr',
     };
-    const created = SpreadsheetService.insert('Classes', record);
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_CLASS',
-      entityType: 'class',
-      entityId: created.id,
-      description: 'إضافة فصل دراسي: ' + created.nameAr,
-    });
+    var created = SpreadsheetService.insert('Classes', record);
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_CLASS',
+        entityType: 'class',
+        entityId: created.id,
+        description: 'إضافة فصل دراسي: ' + created.nameAr,
+      });
+    } catch (e) {}
     return created;
   },
 
   updateClass: function (id, updates, user) {
-    const updated = SpreadsheetService.update('Classes', id, updates);
+    var updated = SpreadsheetService.update('Classes', id, updates);
     if (updated) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'UPDATE_CLASS',
-        entityType: 'class',
-        entityId: id,
-        description: 'تحديث بيانات الفصل: ' + (updated.nameAr || id),
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'UPDATE_CLASS',
+          entityType: 'class',
+          entityId: id,
+          description: 'تحديث بيانات الفصل: ' + (updated.nameAr || id),
+        });
+      } catch (e) {}
     }
     return updated;
   },
 
   deleteClass: function (id, user) {
-    const deleted = SpreadsheetService.deleteById('Classes', id);
+    var deleted = SpreadsheetService.deleteById('Classes', id);
     if (deleted) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'DELETE_CLASS',
-        entityType: 'class',
-        entityId: id,
-        description: 'حذف الفصل الدراسي: ' + id,
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'DELETE_CLASS',
+          entityType: 'class',
+          entityId: id,
+          description: 'حذف الفصل الدراسي: ' + id,
+        });
+      } catch (e) {}
     }
     return deleted;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.ClassService = ClassService;
+}
+if (typeof global !== 'undefined') {
+  global.ClassService = ClassService;
+}

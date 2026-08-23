@@ -3,40 +3,44 @@
  * Validates non-overlapping slots, room/lab bookings, teacher collisions, and break collisions.
  */
 
-const TimetableService = {
+var TimetableService = {
   getAllSlots: function () {
-    const slots = SpreadsheetService.getAll('Timetable');
-    return slots.map((s) => ({
-      id: s.id,
-      schoolId: s.schoolId || 'badr',
-      academicYearId: s.academicYearId || 'ay-2025-2026',
-      dayOfWeek: s.dayOfWeek,
-      slotIndex: Number(s.slotIndex),
-      startTime: s.startTime,
-      endTime: s.endTime,
-      durationMinutes: Number(s.durationMinutes) || 60,
-      gradeId: s.gradeId,
-      classId: s.classId,
-      subjectId: s.subjectId,
-      teacherId: s.teacherId,
-      locationType: s.locationType || 'classroom',
-      labId: s.labId || '',
-      workshopId: s.workshopId || '',
-      roomName: s.roomName || '',
-    }));
+    var slots = SpreadsheetService.getAll('Timetable');
+    return slots.map(function (s) {
+      return {
+        id: s.id,
+        schoolId: s.schoolId || 'badr',
+        academicYearId: s.academicYearId || 'ay-2025-2026',
+        dayOfWeek: s.dayOfWeek,
+        slotIndex: Number(s.slotIndex),
+        startTime: s.startTime,
+        endTime: s.endTime,
+        durationMinutes: Number(s.durationMinutes) || 60,
+        gradeId: s.gradeId,
+        classId: s.classId,
+        subjectId: s.subjectId,
+        teacherId: s.teacherId,
+        locationType: s.locationType || 'classroom',
+        labId: s.labId || '',
+        workshopId: s.workshopId || '',
+        roomName: s.roomName || '',
+      };
+    });
   },
 
   /**
    * Checks if slot overlaps any active breaks or other slots.
    */
   detectConflicts: function (newSlot, excludeSlotId) {
-    const allSlots = this.getAllSlots();
-    const allBreaks = BreakService.getAllBreaks().filter((b) => b.status === 'active');
+    var allSlots = this.getAllSlots();
+    var allBreaks = BreakService.getAllBreaks().filter(function (b) {
+      return b.status === 'active';
+    });
 
     // 1. Check Break Collision
-    for (let i = 0; i < allBreaks.length; i++) {
-      const b = allBreaks[i];
-      if (b.daysOfWeek.includes(newSlot.dayOfWeek)) {
+    for (var i = 0; i < allBreaks.length; i++) {
+      var b = allBreaks[i];
+      if (b.daysOfWeek && b.daysOfWeek.indexOf(newSlot.dayOfWeek) !== -1) {
         if (this.timeRangesOverlap(newSlot.startTime, newSlot.endTime, b.startTime, b.endTime)) {
           return {
             hasConflict: true,
@@ -49,8 +53,8 @@ const TimetableService = {
     }
 
     // 2. Check Other Slot Collisions (Teacher, Class, Lab, Workshop)
-    for (let j = 0; j < allSlots.length; j++) {
-      const existing = allSlots[j];
+    for (var j = 0; j < allSlots.length; j++) {
+      var existing = allSlots[j];
       if (excludeSlotId && String(existing.id) === String(excludeSlotId)) continue;
       if (existing.dayOfWeek !== newSlot.dayOfWeek) continue;
 
@@ -95,27 +99,27 @@ const TimetableService = {
 
   timeRangesOverlap: function (s1, e1, s2, e2) {
     if (!s1 || !e1 || !s2 || !e2) return false;
-    const toMins = (t) => {
-      const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
+    var toMins = function (t) {
+      var parts = t.split(':').map(Number);
+      return parts[0] * 60 + (parts[1] || 0);
     };
-    const start1 = toMins(s1);
-    const end1 = toMins(e1);
-    const start2 = toMins(s2);
-    const end2 = toMins(e2);
+    var start1 = toMins(s1);
+    var end1 = toMins(e1);
+    var start2 = toMins(s2);
+    var end2 = toMins(e2);
     return Math.max(start1, start2) < Math.min(end1, end2);
   },
 
   createSlot: function (slotData, user) {
-    const conflict = this.detectConflicts(slotData);
+    var conflict = this.detectConflicts(slotData);
     if (conflict.hasConflict) {
       throw new Error(conflict.description);
     }
 
-    const settings = SettingsService.getSettings();
-    const duration = Number(slotData.durationMinutes) || Number(settings.lessonDurationMinutes) || 60;
+    var settings = SettingsService.getSettings();
+    var duration = Number(slotData.durationMinutes) || Number(settings.lessonDurationMinutes) || 60;
 
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       schoolId: slotData.schoolId || 'badr',
       academicYearId: slotData.academicYearId || 'ay-2025-2026',
@@ -134,62 +138,75 @@ const TimetableService = {
       roomName: slotData.roomName || '',
     };
 
-    const created = SpreadsheetService.insert('Timetable', record);
+    var created = SpreadsheetService.insert('Timetable', record);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_TIMETABLE_SLOT',
-      entityType: 'timetable',
-      entityId: created.id,
-      description: 'إضافة حصة جديدة في الجدول الدراسي: ' + created.dayOfWeek + ' (' + created.startTime + ' - ' + created.endTime + ')',
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_TIMETABLE_SLOT',
+        entityType: 'timetable',
+        entityId: created.id,
+        description: 'إضافة حصة جديدة في الجدول الدراسي: ' + created.dayOfWeek + ' (' + created.startTime + ' - ' + created.endTime + ')',
+      });
+    } catch (e) {}
 
     return created;
   },
 
   updateSlot: function (id, updates, user) {
-    const existing = SpreadsheetService.findById('Timetable', id);
+    var existing = SpreadsheetService.findById('Timetable', id);
     if (!existing) throw new Error('الحصة غير موجودة في الجدول.');
 
-    const merged = Object.assign({}, existing, updates);
-    const conflict = this.detectConflicts(merged, id);
+    var merged = Object.assign({}, existing, updates);
+    var conflict = this.detectConflicts(merged, id);
     if (conflict.hasConflict) {
       throw new Error(conflict.description);
     }
 
-    const updated = SpreadsheetService.update('Timetable', id, updates);
+    var updated = SpreadsheetService.update('Timetable', id, updates);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'UPDATE_TIMETABLE_SLOT',
-      entityType: 'timetable',
-      entityId: id,
-      description: 'تعديل حصة في الجدول الدراسي: ' + existing.dayOfWeek + ' (' + existing.startTime + ')',
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'UPDATE_TIMETABLE_SLOT',
+        entityType: 'timetable',
+        entityId: id,
+        description: 'تعديل حصة في الجدول الدراسي: ' + existing.dayOfWeek + ' (' + existing.startTime + ')',
+      });
+    } catch (e) {}
 
     return updated;
   },
 
   deleteSlot: function (id, user) {
-    const existing = SpreadsheetService.findById('Timetable', id);
+    var existing = SpreadsheetService.findById('Timetable', id);
     if (!existing) return true;
 
     SpreadsheetService.deleteById('Timetable', id);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'DELETE_TIMETABLE_SLOT',
-      entityType: 'timetable',
-      entityId: id,
-      description: 'حذف حصة من الجدول الدراسي: ' + existing.dayOfWeek + ' (' + existing.startTime + ')',
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'DELETE_TIMETABLE_SLOT',
+        entityType: 'timetable',
+        entityId: id,
+        description: 'حذف حصة من الجدول الدراسي: ' + existing.dayOfWeek + ' (' + existing.startTime + ')',
+      });
+    } catch (e) {}
 
     return true;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.TimetableService = TimetableService;
+}
+if (typeof global !== 'undefined') {
+  global.TimetableService = TimetableService;
+}

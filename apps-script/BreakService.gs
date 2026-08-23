@@ -4,11 +4,11 @@
  * Strict Business Rule: Breaks MUST NEVER count towards lesson totals, teaching loads, or achievement rates.
  */
 
-const BreakService = {
+var BreakService = {
   getAllBreaks: function () {
-    const breaks = SpreadsheetService.getAll('Breaks');
-    return breaks.map((b) => {
-      let days = [];
+    var breaks = SpreadsheetService.getAll('Breaks');
+    return breaks.map(function (b) {
+      var days = [];
       try {
         days = typeof b.daysOfWeekJson === 'string' ? JSON.parse(b.daysOfWeekJson) : b.daysOfWeekJson;
       } catch (e) {
@@ -20,7 +20,7 @@ const BreakService = {
         type: b.type || 'break',
         startTime: b.startTime,
         endTime: b.endTime,
-        durationMinutes: Number(b.durationMinutes) || this.calculateDurationMinutes(b.startTime, b.endTime),
+        durationMinutes: Number(b.durationMinutes) || BreakService.calculateDurationMinutes(b.startTime, b.endTime),
         daysOfWeek: Array.isArray(days) ? days : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
         status: b.status || 'active',
         schoolId: b.schoolId || 'badr',
@@ -31,10 +31,10 @@ const BreakService = {
 
   calculateDurationMinutes: function (startStr, endStr) {
     if (!startStr || !endStr) return 0;
-    const [sh, sm] = startStr.split(':').map(Number);
-    const [eh, em] = endStr.split(':').map(Number);
-    const startMins = sh * 60 + sm;
-    const endMins = eh * 60 + em;
+    var sParts = startStr.split(':').map(Number);
+    var eParts = endStr.split(':').map(Number);
+    var startMins = sParts[0] * 60 + (sParts[1] || 0);
+    var endMins = eParts[0] * 60 + (eParts[1] || 0);
     return Math.max(0, endMins - startMins);
   },
 
@@ -43,14 +43,14 @@ const BreakService = {
       throw new Error('اسم الاستراحة ووقت البداية والنهاية حقول مطلوبة.');
     }
 
-    const duration = this.calculateDurationMinutes(data.startTime, data.endTime);
+    var duration = this.calculateDurationMinutes(data.startTime, data.endTime);
     if (duration <= 0) {
       throw new Error('وقت نهاية الاستراحة يجب أن يكون بعد وقت البداية.');
     }
 
-    const days = Array.isArray(data.daysOfWeek) ? data.daysOfWeek : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+    var days = Array.isArray(data.daysOfWeek) ? data.daysOfWeek : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
 
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       name: data.name,
       type: data.type || 'break',
@@ -63,34 +63,36 @@ const BreakService = {
       notes: data.notes || '',
     };
 
-    const created = SpreadsheetService.insert('Breaks', record);
+    var created = SpreadsheetService.insert('Breaks', record);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_BREAK',
-      entityType: 'break',
-      entityId: created.id,
-      description: 'إضافة فترة استراحة جديدة: ' + created.name + ' (' + duration + ' دقيقة)',
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_BREAK',
+        entityType: 'break',
+        entityId: created.id,
+        description: 'إضافة فترة استراحة جديدة: ' + created.name + ' (' + duration + ' دقيقة)',
+      });
+    } catch (e) {}
 
     return created;
   },
 
   updateBreak: function (id, updates, user) {
-    const existing = SpreadsheetService.findById('Breaks', id);
+    var existing = SpreadsheetService.findById('Breaks', id);
     if (!existing) throw new Error('فترة الاستراحة غير موجودة.');
 
-    const start = updates.startTime || existing.startTime;
-    const end = updates.endTime || existing.endTime;
-    const duration = this.calculateDurationMinutes(start, end);
+    var start = updates.startTime || existing.startTime;
+    var end = updates.endTime || existing.endTime;
+    var duration = this.calculateDurationMinutes(start, end);
 
     if (duration <= 0) {
       throw new Error('وقت نهاية الاستراحة يجب أن يكون بعد وقت البداية.');
     }
 
-    const recordUpdates = Object.assign({}, updates, {
+    var recordUpdates = Object.assign({}, updates, {
       durationMinutes: duration,
     });
 
@@ -99,37 +101,48 @@ const BreakService = {
       delete recordUpdates.daysOfWeek;
     }
 
-    const updated = SpreadsheetService.update('Breaks', id, recordUpdates);
+    var updated = SpreadsheetService.update('Breaks', id, recordUpdates);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'UPDATE_BREAK',
-      entityType: 'break',
-      entityId: id,
-      description: 'تحديث فترة الاستراحة: ' + existing.name,
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'UPDATE_BREAK',
+        entityType: 'break',
+        entityId: id,
+        description: 'تحديث فترة الاستراحة: ' + existing.name,
+      });
+    } catch (e) {}
 
     return updated;
   },
 
   deleteBreak: function (id, user) {
-    const existing = SpreadsheetService.findById('Breaks', id);
+    var existing = SpreadsheetService.findById('Breaks', id);
     if (!existing) return true;
 
     SpreadsheetService.deleteById('Breaks', id);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'DELETE_BREAK',
-      entityType: 'break',
-      entityId: id,
-      description: 'حذف فترة الاستراحة: ' + existing.name,
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'DELETE_BREAK',
+        entityType: 'break',
+        entityId: id,
+        description: 'حذف فترة الاستراحة: ' + existing.name,
+      });
+    } catch (e) {}
 
     return true;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.BreakService = BreakService;
+}
+if (typeof global !== 'undefined') {
+  global.BreakService = BreakService;
+}

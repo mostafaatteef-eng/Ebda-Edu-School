@@ -5,13 +5,13 @@
  * - Target Weekly Teaching Load: 25 Lessons / 25 Hours
  */
 
-const SettingsService = {
+var SettingsService = {
   /**
    * Retrieves all system settings as a key-value object.
    */
   getSettings: function () {
-    const rows = SpreadsheetService.getAll('SystemSettings');
-    const settings = {
+    var rows = SpreadsheetService.getAll('SystemSettings');
+    var settings = {
       lessonDurationMinutes: 60,
       weeklyTeachingTarget: 25,
       schoolStartTime: '08:00',
@@ -19,11 +19,11 @@ const SettingsService = {
       defaultParentVisibility: true,
       maxUploadSizeMB: 50,
       activeSchoolId: 'badr',
-      schoolNameAr: 'مدرسة ابدأ – بدر للعلوم والتكنولوجيا التطبيقية',
+      schoolNameAr: 'مدرسة ابدا - للعلوم التقنية - بدر',
     };
 
-    rows.forEach((r) => {
-      let val = r.value;
+    rows.forEach(function (r) {
+      var val = r.value;
       if (val === 'true') val = true;
       else if (val === 'false') val = false;
       else if (!isNaN(val) && val !== '') val = Number(val);
@@ -37,21 +37,21 @@ const SettingsService = {
    * Updates one or more system settings.
    */
   updateSettings: function (newSettings, updatedBy) {
-    const ss = SpreadsheetService.getSpreadsheet();
-    const sheet = ss.getSheetByName('SystemSettings');
+    var ss = SpreadsheetService.getSpreadsheet();
+    var sheet = ss.getSheetByName('SystemSettings');
     if (!sheet) throw new Error('SystemSettings sheet not found.');
 
-    const lock = LockService.getScriptLock();
+    var lock = LockService.getScriptLock();
     try {
-      lock.waitLock(10000);
-      const data = sheet.getDataRange().getValues();
-      const now = Utils.getIsoTimestamp();
+      lock.waitLock(15000);
+      var data = sheet.getDataRange().getValues();
+      var now = Utils.getIsoTimestamp();
 
-      Object.keys(newSettings).forEach((key) => {
-        const value = String(newSettings[key]);
-        let found = false;
+      Object.keys(newSettings).forEach(function (key) {
+        var value = String(newSettings[key]);
+        var found = false;
 
-        for (let r = 1; r < data.length; r++) {
+        for (var r = 1; r < data.length; r++) {
           if (data[r][0] === key) {
             sheet.getRange(r + 1, 2).setValue(value);
             sheet.getRange(r + 1, 4).setValue(updatedBy || 'OPERATIONS_MANAGER');
@@ -66,9 +66,19 @@ const SettingsService = {
         }
       });
 
+      SpreadsheetApp.flush();
       return this.getSettings();
     } finally {
-      lock.releaseLock();
+      try {
+        lock.releaseLock();
+      } catch (e) {}
     }
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.SettingsService = SettingsService;
+}
+if (typeof global !== 'undefined') {
+  global.SettingsService = SettingsService;
+}

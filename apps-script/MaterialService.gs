@@ -3,24 +3,26 @@
  * Manages links (Google Drive, OneDrive, Docs, LMS) and uploaded file attachments.
  */
 
-const MaterialService = {
+var MaterialService = {
   getAllMaterials: function () {
-    const materials = SpreadsheetService.getAll('LessonMaterials');
-    return materials.map((m) => ({
-      id: m.id,
-      teachingRecordId: m.teachingRecordId || '',
-      lessonId: m.lessonId || '',
-      title: m.title || '',
-      type: m.type || 'link',
-      url: m.url || '',
-      driveFileId: m.driveFileId || '',
-      mimeType: m.mimeType || '',
-      size: m.size || '',
-      uploadedBy: m.uploadedBy || '',
-      parentVisibility: m.parentVisibility === true || m.parentVisibility === 'true',
-      createdAt: m.createdAt,
-      updatedAt: m.updatedAt,
-    }));
+    var materials = SpreadsheetService.getAll('LessonMaterials');
+    return materials.map(function (m) {
+      return {
+        id: m.id,
+        teachingRecordId: m.teachingRecordId || '',
+        lessonId: m.lessonId || '',
+        title: m.title || '',
+        type: m.type || 'link',
+        url: m.url || '',
+        driveFileId: m.driveFileId || '',
+        mimeType: m.mimeType || '',
+        size: m.size || '',
+        uploadedBy: m.uploadedBy || '',
+        parentVisibility: m.parentVisibility === true || m.parentVisibility === 'true',
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+      };
+    });
   },
 
   saveMaterial: function (data) {
@@ -28,7 +30,7 @@ const MaterialService = {
       throw new Error('رابط المادة التعليمية أو معرف الملف مطلوب.');
     }
 
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       teachingRecordId: data.teachingRecordId || '',
       lessonId: data.lessonId || '',
@@ -46,8 +48,14 @@ const MaterialService = {
   },
 
   syncMaterialForRecord: function (recordId, url, title, userId, parentVisibility) {
-    const all = SpreadsheetService.getAll('LessonMaterials');
-    const existing = all.find((m) => String(m.teachingRecordId) === String(recordId));
+    var all = SpreadsheetService.getAll('LessonMaterials');
+    var existing = null;
+    for (var i = 0; i < all.length; i++) {
+      if (String(all[i].teachingRecordId) === String(recordId)) {
+        existing = all[i];
+        break;
+      }
+    }
 
     if (existing) {
       if (url && url.trim() !== '') {
@@ -69,3 +77,10 @@ const MaterialService = {
     }
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.MaterialService = MaterialService;
+}
+if (typeof global !== 'undefined') {
+  global.MaterialService = MaterialService;
+}

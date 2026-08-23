@@ -3,37 +3,39 @@
  * Captures delivered topics, materials URLs, and parent visibility.
  */
 
-const TeachingRecordService = {
+var TeachingRecordService = {
   getAllRecords: function () {
-    const records = SpreadsheetService.getAll('TeachingRecords');
-    return records.map((r) => ({
-      id: r.id,
-      timetableSlotId: r.timetableSlotId || '',
-      schoolId: r.schoolId || 'badr',
-      date: r.date,
-      dayOfWeek: r.dayOfWeek,
-      slotIndex: Number(r.slotIndex) || 1,
-      startTime: r.startTime,
-      endTime: r.endTime,
-      durationMinutes: Number(r.durationMinutes) || 60,
-      teacherId: r.teacherId,
-      subjectId: r.subjectId,
-      gradeId: r.gradeId,
-      classId: r.classId,
-      locationType: r.locationType || 'classroom',
-      labId: r.labId || '',
-      workshopId: r.workshopId || '',
-      roomName: r.roomName || '',
-      lessonTopic: r.lessonTopic || '',
-      unitModule: r.unitModule || '',
-      lessonStatus: r.lessonStatus || 'completed',
-      notCompletedReason: r.notCompletedReason || '',
-      materialsUrl: r.materialsUrl || '',
-      teacherNotes: r.teacherNotes || '',
-      parentVisibility: r.parentVisibility === true || r.parentVisibility === 'true',
-      recordedAt: r.recordedAt || '',
-      lastUpdatedAt: r.lastUpdatedAt || '',
-    }));
+    var records = SpreadsheetService.getAll('TeachingRecords');
+    return records.map(function (r) {
+      return {
+        id: r.id,
+        timetableSlotId: r.timetableSlotId || '',
+        schoolId: r.schoolId || 'badr',
+        date: r.date,
+        dayOfWeek: r.dayOfWeek,
+        slotIndex: Number(r.slotIndex) || 1,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        durationMinutes: Number(r.durationMinutes) || 60,
+        teacherId: r.teacherId,
+        subjectId: r.subjectId,
+        gradeId: r.gradeId,
+        classId: r.classId,
+        locationType: r.locationType || 'classroom',
+        labId: r.labId || '',
+        workshopId: r.workshopId || '',
+        roomName: r.roomName || '',
+        lessonTopic: r.lessonTopic || '',
+        unitModule: r.unitModule || '',
+        lessonStatus: r.lessonStatus || 'completed',
+        notCompletedReason: r.notCompletedReason || '',
+        materialsUrl: r.materialsUrl || '',
+        teacherNotes: r.teacherNotes || '',
+        parentVisibility: r.parentVisibility === true || r.parentVisibility === 'true',
+        recordedAt: r.recordedAt || '',
+        lastUpdatedAt: r.lastUpdatedAt || '',
+      };
+    });
   },
 
   recordLesson: function (data, user) {
@@ -41,15 +43,15 @@ const TeachingRecordService = {
       throw new Error('المعلم، المادة، الفصل، وموضوع الدرس حقول مطلوبة.');
     }
 
-    const settings = SettingsService.getSettings();
+    var settings = SettingsService.getSettings();
     if (settings.requireMaterialsLink && (!data.materialsUrl || String(data.materialsUrl).trim() === '')) {
       throw new Error('سياسة المدرسة تشترط إضافة رابط المواد التعليمية قبل توثيق الحصة.');
     }
 
-    const duration = Number(data.durationMinutes) || Number(settings.lessonDurationMinutes) || 60;
-    const now = Utils.getIsoTimestamp();
+    var duration = Number(data.durationMinutes) || Number(settings.lessonDurationMinutes) || 60;
+    var now = Utils.getIsoTimestamp();
 
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       timetableSlotId: data.timetableSlotId || '',
       schoolId: data.schoolId || 'badr',
@@ -78,74 +80,91 @@ const TeachingRecordService = {
       lastUpdatedAt: now,
     };
 
-    const created = SpreadsheetService.insert('TeachingRecords', record);
+    var created = SpreadsheetService.insert('TeachingRecords', record);
 
     // If material URL or attachment is present, record in LessonMaterials sheet too
     if (data.materialsUrl && String(data.materialsUrl).trim() !== '') {
-      MaterialService.saveMaterial({
-        teachingRecordId: created.id,
-        title: data.lessonTopic,
-        url: data.materialsUrl,
-        type: 'link',
-        uploadedBy: user.id,
-        parentVisibility: created.parentVisibility,
-      });
+      try {
+        MaterialService.saveMaterial({
+          teachingRecordId: created.id,
+          title: data.lessonTopic,
+          url: data.materialsUrl,
+          type: 'link',
+          uploadedBy: user ? user.id : 'SYSTEM',
+          parentVisibility: created.parentVisibility,
+        });
+      } catch (e) {}
     }
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'RECORD_LESSON',
-      entityType: 'teaching_record',
-      entityId: created.id,
-      description: 'توثيق تنفيذ حصة: ' + created.lessonTopic + ' (' + created.date + ')',
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'RECORD_LESSON',
+        entityType: 'teaching_record',
+        entityId: created.id,
+        description: 'توثيق تنفيذ حصة: ' + created.lessonTopic + ' (' + created.date + ')',
+      });
+    } catch (e) {}
 
     return created;
   },
 
   updateRecord: function (id, updates, user) {
-    const existing = SpreadsheetService.findById('TeachingRecords', id);
+    var existing = SpreadsheetService.findById('TeachingRecords', id);
     if (!existing) throw new Error('سجل الحصة غير موجود.');
 
-    const now = Utils.getIsoTimestamp();
-    const updated = SpreadsheetService.update('TeachingRecords', id, Object.assign({}, updates, { lastUpdatedAt: now }));
+    var now = Utils.getIsoTimestamp();
+    var updated = SpreadsheetService.update('TeachingRecords', id, Object.assign({}, updates, { lastUpdatedAt: now }));
 
     // Keep MaterialService in sync if materialsUrl updated
     if (updates.materialsUrl !== undefined) {
-      MaterialService.syncMaterialForRecord(id, updates.materialsUrl, existing.lessonTopic, user.id, updated.parentVisibility);
+      try {
+        MaterialService.syncMaterialForRecord(id, updates.materialsUrl, existing.lessonTopic, user ? user.id : 'SYSTEM', updated.parentVisibility);
+      } catch (e) {}
     }
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'UPDATE_TEACHING_RECORD',
-      entityType: 'teaching_record',
-      entityId: id,
-      description: 'تعديل توثيق الحصة: ' + existing.lessonTopic,
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'UPDATE_TEACHING_RECORD',
+        entityType: 'teaching_record',
+        entityId: id,
+        description: 'تعديل توثيق الحصة: ' + existing.lessonTopic,
+      });
+    } catch (e) {}
 
     return updated;
   },
 
   toggleParentVisibility: function (id, visible, user) {
-    const existing = SpreadsheetService.findById('TeachingRecords', id);
+    var existing = SpreadsheetService.findById('TeachingRecords', id);
     if (!existing) throw new Error('سجل الحصة غير موجود.');
 
-    const updated = SpreadsheetService.update('TeachingRecords', id, { parentVisibility: visible });
+    var updated = SpreadsheetService.update('TeachingRecords', id, { parentVisibility: visible });
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CHANGE_PARENT_VISIBILITY',
-      entityType: 'teaching_record',
-      entityId: id,
-      description: 'تغيير رؤية أولياء الأمور لسجل الحصة إلى: ' + (visible ? 'مرئي' : 'مخفي'),
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CHANGE_PARENT_VISIBILITY',
+        entityType: 'teaching_record',
+        entityId: id,
+        description: 'تغيير رؤية أولياء الأمور لسجل الحصة إلى: ' + (visible ? 'مرئي' : 'مخفي'),
+      });
+    } catch (e) {}
 
     return updated;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.TeachingRecordService = TeachingRecordService;
+}
+if (typeof global !== 'undefined') {
+  global.TeachingRecordService = TeachingRecordService;
+}

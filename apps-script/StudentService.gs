@@ -2,19 +2,21 @@
  * EBDA EDU — Student Directory Management Service
  */
 
-const StudentService = {
+var StudentService = {
   getAllStudents: function () {
-    const students = SpreadsheetService.getAll('Students');
-    return students.map((s) => ({
-      id: s.id,
-      nationalId: s.nationalId || '',
-      name: s.name,
-      gradeId: s.gradeId,
-      classId: s.classId,
-      parentId: s.parentId || '',
-      phone: s.phone || '',
-      status: s.status || 'active',
-    }));
+    var students = SpreadsheetService.getAll('Students');
+    return students.map(function (s) {
+      return {
+        id: s.id,
+        nationalId: s.nationalId || '',
+        name: s.name,
+        gradeId: s.gradeId,
+        classId: s.classId,
+        parentId: s.parentId || '',
+        phone: s.phone || '',
+        status: s.status || 'active',
+      };
+    });
   },
 
   createStudent: function (data, user) {
@@ -22,7 +24,7 @@ const StudentService = {
       throw new Error('اسم الطالب، المرحلة، والفصل حقول مطلوبة.');
     }
 
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       nationalId: data.nationalId || '',
       name: data.name,
@@ -33,18 +35,27 @@ const StudentService = {
       status: data.status || 'active',
     };
 
-    const created = SpreadsheetService.insert('Students', record);
+    var created = SpreadsheetService.insert('Students', record);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_STUDENT',
-      entityType: 'student',
-      entityId: created.id,
-      description: 'تسجيل طالب جديد: ' + created.name,
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_STUDENT',
+        entityType: 'student',
+        entityId: created.id,
+        description: 'تسجيل طالب جديد: ' + created.name,
+      });
+    } catch (e) {}
 
     return created;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.StudentService = StudentService;
+}
+if (typeof global !== 'undefined') {
+  global.StudentService = StudentService;
+}

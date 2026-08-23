@@ -3,10 +3,10 @@
  * Manages Drive folders and direct file uploads for lesson materials.
  */
 
-const DriveService = {
+var DriveService = {
   getRootFolder: function () {
-    const props = PropertiesService.getScriptProperties();
-    let folderId = props.getProperty('DRIVE_ROOT_FOLDER_ID');
+    var props = PropertiesService.getScriptProperties();
+    var folderId = props.getProperty('DRIVE_ROOT_FOLDER_ID');
     if (folderId) {
       try {
         return DriveApp.getFolderById(folderId);
@@ -16,21 +16,21 @@ const DriveService = {
     }
 
     // Search or create
-    const folders = DriveApp.getFoldersByName('EBDA EDU');
+    var folders = DriveApp.getFoldersByName('EBDA EDU');
     if (folders.hasNext()) {
-      const folder = folders.next();
+      var folder = folders.next();
       props.setProperty('DRIVE_ROOT_FOLDER_ID', folder.getId());
       return folder;
     }
 
-    const newFolder = DriveApp.createFolder('EBDA EDU');
+    var newFolder = DriveApp.createFolder('EBDA EDU');
     props.setProperty('DRIVE_ROOT_FOLDER_ID', newFolder.getId());
     return newFolder;
   },
 
   getMaterialsFolder: function () {
-    const root = this.getRootFolder();
-    const subfolders = root.getFoldersByName('Lesson Materials');
+    var root = this.getRootFolder();
+    var subfolders = root.getFoldersByName('Lesson Materials');
     if (subfolders.hasNext()) {
       return subfolders.next();
     }
@@ -42,10 +42,10 @@ const DriveService = {
       throw new Error('بيانات الملف غير مكتملة.');
     }
 
-    const folder = this.getMaterialsFolder();
-    const bytes = Utilities.base64Decode(fileData.base64Data);
-    const blob = Utilities.newBlob(bytes, fileData.mimeType || 'application/octet-stream', fileData.fileName);
-    const file = folder.createFile(blob);
+    var folder = this.getMaterialsFolder();
+    var bytes = Utilities.base64Decode(fileData.base64Data);
+    var blob = Utilities.newBlob(bytes, fileData.mimeType || 'application/octet-stream', fileData.fileName);
+    var file = folder.createFile(blob);
 
     // Make accessible via link if parent visibility required
     try {
@@ -64,3 +64,10 @@ const DriveService = {
     };
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.DriveService = DriveService;
+}
+if (typeof global !== 'undefined') {
+  global.DriveService = DriveService;
+}

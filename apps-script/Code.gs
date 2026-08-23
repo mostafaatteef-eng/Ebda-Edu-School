@@ -32,26 +32,26 @@ function doOptions(e) {
  * 2. Initializes all 23 database sheets with header columns
  * 3. Creates 'EBDA EDU' Google Drive root folder
  * 4. Seeds default settings (60 min duration, 25 lessons weekly target)
- * 5. Creates initial Operations Manager administrator account
+ * 5. Creates initial Operations Manager administrator account: mostafa@atef / mostafa@ebda
  */
 function initializeEBDA() {
   Logger.log('🚀 Initializing EBDA EDU Google Apps Script Backend...');
-  const props = PropertiesService.getScriptProperties();
+  var props = PropertiesService.getScriptProperties();
 
   // 1. Spreadsheet Initialization
-  let spreadsheet;
-  const existingSheetId = props.getProperty('SPREADSHEET_ID');
+  var spreadsheet;
+  var existingSheetId = props.getProperty('SPREADSHEET_ID');
   if (existingSheetId) {
     try {
       spreadsheet = SpreadsheetApp.openById(existingSheetId);
       Logger.log('Attached to existing Spreadsheet: ' + spreadsheet.getName());
     } catch (e) {
       Logger.log('Creating new Spreadsheet...');
-      spreadsheet = SpreadsheetApp.create('EBDA EDU — قاعدة بيانات إدارة العمليات والمتابعة الأكاديمية');
+      spreadsheet = SpreadsheetApp.create('EBDA EDU — قاعدة بيانات مدرسة ابدا - للعلوم التقنية - بدر');
       props.setProperty('SPREADSHEET_ID', spreadsheet.getId());
     }
   } else {
-    spreadsheet = SpreadsheetApp.create('EBDA EDU — قاعدة بيانات إدارة العمليات والمتابعة الأكاديمية');
+    spreadsheet = SpreadsheetApp.create('EBDA EDU — قاعدة بيانات مدرسة ابدا - للعلوم التقنية - بدر');
     props.setProperty('SPREADSHEET_ID', spreadsheet.getId());
     Logger.log('Created new Spreadsheet with ID: ' + spreadsheet.getId());
   }
@@ -61,22 +61,24 @@ function initializeEBDA() {
   Logger.log('✅ Bootstrapped 23 Database Sheets with headers.');
 
   // 3. Drive Root Folder Initialization
-  const driveFolder = DriveService.getRootFolder();
+  var driveFolder = DriveService.getRootFolder();
   Logger.log('✅ Google Drive Root Folder Initialized: ' + driveFolder.getName() + ' (ID: ' + driveFolder.getId() + ')');
 
-  // 4. Create Initial Operations Manager Admin User if none exists
-  let initialAdminTempPassword = null;
-  const existingUsers = SpreadsheetService.getAll('Users');
-  if (existingUsers.length === 0) {
-    const adminSalt = Utils.generateUUID();
-    initialAdminTempPassword = Utils.generateSecureRandomPassword('Admin');
-    const adminPasswordHash = Utils.hashPassword(initialAdminTempPassword, adminSalt);
-    const adminUser = {
+  // 4. Create Initial Operations Manager Admin User: mostafa@atef / mostafa@ebda
+  var existingUsers = SpreadsheetService.getAll('Users');
+  var existingAdmin = existingUsers.find(function (u) {
+    return String(u.username).trim().toLowerCase() === 'mostafa@atef' || String(u.username).trim().toLowerCase() === 'admin';
+  });
+
+  if (!existingAdmin) {
+    var adminSalt = Utils.generateUUID();
+    var adminPasswordHash = Utils.hashPassword('mostafa@ebda', adminSalt);
+    var adminUser = {
       id: 'usr-admin-01',
-      username: 'admin',
-      name: 'مدير العمليات والتشغيل',
+      username: 'mostafa@atef',
+      name: 'أ/ مصطفى عاطف (مدير العمليات والتشغيل)',
       role: 'operations_manager',
-      email: 'operations@ebdaschools.edu.eg',
+      email: 'mostafa@atef',
       phone: '01000000001',
       status: 'active',
       passwordHash: adminPasswordHash,
@@ -85,8 +87,7 @@ function initializeEBDA() {
       updatedAt: Utils.getIsoTimestamp(),
     };
     SpreadsheetService.insert('Users', adminUser);
-    Logger.log('✅ Created Initial Operations Manager (Username: admin)');
-    Logger.log('🔑 TEMPORARY INITIAL ADMIN PASSWORD (PROVIDED ONLY ONCE): ' + initialAdminTempPassword);
+    Logger.log('✅ Created Operations Manager (Username: mostafa@atef / Password: mostafa@ebda)');
   }
 
   Logger.log('✨ EBDA EDU Backend Initialization Complete!');
@@ -98,7 +99,14 @@ function initializeEBDA() {
     spreadsheetId: spreadsheet.getId(),
     spreadsheetUrl: spreadsheet.getUrl(),
     driveFolderId: driveFolder.getId(),
-    initialAdminUsername: 'admin',
-    initialAdminTempPassword: initialAdminTempPassword,
+    initialAdminUsername: 'mostafa@atef',
+    message: 'تمت تهيئة النظام وقاعدة البيانات بنجاح.',
   };
+}
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.doGet = doGet;
+  globalThis.doPost = doPost;
+  globalThis.doOptions = doOptions;
+  globalThis.initializeEBDA = initializeEBDA;
 }

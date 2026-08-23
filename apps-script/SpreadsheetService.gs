@@ -4,7 +4,7 @@
  * Supports batch reads/writes, automatic schema bootstrapping, and concurrency locks.
  */
 
-const SpreadsheetService = {
+var SpreadsheetService = {
   _cachedSS: null,
 
   /**
@@ -44,15 +44,15 @@ const SpreadsheetService = {
     if (this._cachedSS) {
       return this._cachedSS;
     }
-    const props = PropertiesService.getScriptProperties();
-    const sheetId = props.getProperty('SPREADSHEET_ID');
+    var props = PropertiesService.getScriptProperties();
+    var sheetId = props.getProperty('SPREADSHEET_ID');
     if (sheetId) {
       this._cachedSS = SpreadsheetApp.openById(sheetId);
       return this._cachedSS;
     }
     // Fallback: active spreadsheet if bound
     try {
-      const active = SpreadsheetApp.getActiveSpreadsheet();
+      var active = SpreadsheetApp.getActiveSpreadsheet();
       if (active) {
         props.setProperty('SPREADSHEET_ID', active.getId());
         this._cachedSS = active;
@@ -61,34 +61,36 @@ const SpreadsheetService = {
     } catch (e) {
       // Unbound standalone script
     }
-    throw new Error('Spreadsheet ID is not configured in Script Properties.');
+    throw new Error('لم يتم تكوين معرف جدول البيانات (SPREADSHEET_ID) في خصائص البرنامج النصي.');
   },
 
   /**
-   * Initializes all 23 database sheets with proper column headers.
+   * Initializes all 24 database sheets with proper column headers.
    */
   bootstrapSchema: function (spreadsheet) {
-    const ss = spreadsheet || this.getSpreadsheet();
-    const sheetNames = Object.keys(this.SHEET_SCHEMAS);
+    var ss = spreadsheet || this.getSpreadsheet();
+    var sheetNames = Object.keys(this.SHEET_SCHEMAS);
 
-    sheetNames.forEach((name) => {
-      let sheet = ss.getSheetByName(name);
-      const headers = this.SHEET_SCHEMAS[name];
+    sheetNames.forEach(function (name) {
+      var sheet = ss.getSheetByName(name);
+      var headers = SpreadsheetService.SHEET_SCHEMAS[name];
       if (!sheet) {
         sheet = ss.insertSheet(name);
         sheet.appendRow(headers);
         sheet.setFrozenRows(1);
-        const headerRange = sheet.getRange(1, 1, 1, headers.length);
+        var headerRange = sheet.getRange(1, 1, 1, headers.length);
         headerRange.setBackground('#25A09F').setFontColor('#FFFFFF').setFontWeight('bold');
       } else {
         // Ensure header integrity
-        const existingHeaders = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+        var existingHeaders = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
         if (existingHeaders.length === 0 || !existingHeaders[0]) {
           sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
           sheet.setFrozenRows(1);
         }
       }
     });
+
+    SpreadsheetApp.flush();
 
     // Initialize Default System Settings if empty
     this.seedDefaultSettings(ss);
@@ -99,19 +101,20 @@ const SpreadsheetService = {
    * Seeds official system setting defaults.
    */
   seedDefaultSettings: function (ss) {
-    const settingsSheet = ss.getSheetByName('SystemSettings');
+    var settingsSheet = ss.getSheetByName('SystemSettings');
     if (!settingsSheet || settingsSheet.getLastRow() <= 1) {
-      const defaultSettings = [
+      var defaultSettings = [
         ['lessonDurationMinutes', '60', 'Default Lesson Duration in Minutes (Official Standard: 60)', 'SYSTEM', Utils.getIsoTimestamp()],
         ['weeklyTeachingTarget', '25', 'Weekly Teaching Load Target in Lessons/Hours (Official: 25)', 'SYSTEM', Utils.getIsoTimestamp()],
         ['requireMaterialsLink', 'false', 'Require Lesson Materials URL Before Record Completion', 'SYSTEM', Utils.getIsoTimestamp()],
         ['defaultParentVisibility', 'true', 'Default Visibility of Documented Lessons to Parents', 'SYSTEM', Utils.getIsoTimestamp()],
         ['maxUploadSizeMB', '50', 'Maximum File Upload Size in Megabytes', 'SYSTEM', Utils.getIsoTimestamp()],
         ['activeSchoolId', 'badr', 'Primary School Tenant Identifier (EBDA School - Badr)', 'SYSTEM', Utils.getIsoTimestamp()],
-        ['schoolNameAr', 'مدرسة ابدأ – بدر للعلوم والتكنولوجيا التطبيقية', 'School Official Arabic Name', 'SYSTEM', Utils.getIsoTimestamp()],
+        ['schoolNameAr', 'مدرسة ابدا - للعلوم التقنية - بدر', 'School Official Arabic Name', 'SYSTEM', Utils.getIsoTimestamp()],
         ['schoolStartTime', '08:00', 'School Daily Morning Start Time', 'SYSTEM', Utils.getIsoTimestamp()],
       ];
       settingsSheet.getRange(2, 1, defaultSettings.length, 5).setValues(defaultSettings);
+      SpreadsheetApp.flush();
     }
   },
 
@@ -119,151 +122,174 @@ const SpreadsheetService = {
    * Batch reads all rows from a sheet as an array of JavaScript objects.
    */
   getAll: function (sheetName) {
-    const ss = this.getSpreadsheet();
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return [];
+    try {
+      var ss = this.getSpreadsheet();
+      var sheet = ss.getSheetByName(sheetName);
+      if (!sheet) return [];
 
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow <= 1 || lastCol === 0) return [];
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
+      if (lastRow <= 1 || lastCol === 0) return [];
 
-    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    const headers = data[0];
-    const rows = [];
+      var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+      var headers = data[0];
+      var rows = [];
 
-    for (let r = 1; r < data.length; r++) {
-      const rowObj = {};
-      let hasData = false;
-      for (let c = 0; c < headers.length; c++) {
-        const val = data[r][c];
-        rowObj[headers[c]] = val;
-        if (val !== '' && val !== null && val !== undefined) hasData = true;
+      for (var r = 1; r < data.length; r++) {
+        var rowObj = {};
+        var hasData = false;
+        for (var c = 0; c < headers.length; c++) {
+          var val = data[r][c];
+          rowObj[headers[c]] = val;
+          if (val !== '' && val !== null && val !== undefined) hasData = true;
+        }
+        if (hasData) {
+          rows.push(rowObj);
+        }
       }
-      if (hasData) {
-        rows.push(rowObj);
-      }
+      return rows;
+    } catch (e) {
+      Logger.log('SpreadsheetService.getAll error for sheet ' + sheetName + ': ' + e);
+      return [];
     }
-    return rows;
   },
 
   /**
    * Finds a single row by ID or specific field.
    */
   findById: function (sheetName, id) {
-    const all = this.getAll(sheetName);
-    return all.find((item) => String(item.id) === String(id)) || null;
+    var all = this.getAll(sheetName);
+    return all.find(function (item) {
+      return String(item.id) === String(id);
+    }) || null;
   },
 
   /**
-   * Appends a new row to a sheet using LockService for concurrency control.
+   * Appends a new row to a sheet using LockService for concurrency control with instant flush.
    */
   insert: function (sheetName, recordData) {
-    const lock = LockService.getScriptLock();
+    var lock = LockService.getScriptLock();
     try {
-      lock.waitLock(10000);
-      const ss = this.getSpreadsheet();
-      const sheet = ss.getSheetByName(sheetName);
+      lock.waitLock(15000);
+      var ss = this.getSpreadsheet();
+      var sheet = ss.getSheetByName(sheetName);
       if (!sheet) throw new Error('Sheet ' + sheetName + ' not found.');
 
-      const headers = this.SHEET_SCHEMAS[sheetName] || sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-      const newId = recordData.id || Utils.generateUUID();
-      const now = Utils.getIsoTimestamp();
+      var headers = this.SHEET_SCHEMAS[sheetName] || sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+      var newId = recordData.id || Utils.generateUUID();
+      var now = Utils.getIsoTimestamp();
 
-      const finalRecord = Object.assign({}, recordData, {
+      var finalRecord = Object.assign({}, recordData, {
         id: newId,
         createdAt: recordData.createdAt || now,
         updatedAt: now,
       });
 
-      const rowValues = headers.map((col) => {
-        const val = finalRecord[col];
+      var rowValues = headers.map(function (col) {
+        var val = finalRecord[col];
         if (val === undefined || val === null) return '';
         if (typeof val === 'object') return JSON.stringify(val);
         return val;
       });
 
       sheet.appendRow(rowValues);
+      SpreadsheetApp.flush();
       return finalRecord;
     } finally {
-      lock.releaseLock();
+      try {
+        lock.releaseLock();
+      } catch (e) {}
     }
   },
 
   /**
-   * Updates an existing row by ID.
+   * Updates an existing row by ID with instant flush.
    */
   update: function (sheetName, id, updates) {
-    const lock = LockService.getScriptLock();
+    var lock = LockService.getScriptLock();
     try {
-      lock.waitLock(10000);
-      const ss = this.getSpreadsheet();
-      const sheet = ss.getSheetByName(sheetName);
+      lock.waitLock(15000);
+      var ss = this.getSpreadsheet();
+      var sheet = ss.getSheetByName(sheetName);
       if (!sheet) throw new Error('Sheet ' + sheetName + ' not found.');
 
-      const lastRow = sheet.getLastRow();
-      const lastCol = sheet.getLastColumn();
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
       if (lastRow <= 1) return null;
 
-      const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-      const headers = data[0];
-      const idColIdx = headers.indexOf('id');
+      var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+      var headers = data[0];
+      var idColIdx = headers.indexOf('id');
       if (idColIdx === -1) throw new Error('ID column missing in sheet ' + sheetName);
 
-      for (let r = 1; r < data.length; r++) {
+      for (var r = 1; r < data.length; r++) {
         if (String(data[r][idColIdx]) === String(id)) {
-          const now = Utils.getIsoTimestamp();
-          const merged = {};
-          headers.forEach((col, idx) => {
+          var now = Utils.getIsoTimestamp();
+          var merged = {};
+          headers.forEach(function (col, idx) {
             merged[col] = data[r][idx];
           });
           Object.assign(merged, updates, { updatedAt: now });
 
-          const newRowValues = headers.map((col) => {
-            const val = merged[col];
+          var newRowValues = headers.map(function (col) {
+            var val = merged[col];
             if (val === undefined || val === null) return '';
             if (typeof val === 'object') return JSON.stringify(val);
             return val;
           });
 
           sheet.getRange(r + 1, 1, 1, headers.length).setValues([newRowValues]);
+          SpreadsheetApp.flush();
           return merged;
         }
       }
       return null;
     } finally {
-      lock.releaseLock();
+      try {
+        lock.releaseLock();
+      } catch (e) {}
     }
   },
 
   /**
-   * Deletes a row by ID.
+   * Deletes a row by ID with instant flush.
    */
   deleteById: function (sheetName, id) {
-    const lock = LockService.getScriptLock();
+    var lock = LockService.getScriptLock();
     try {
-      lock.waitLock(10000);
-      const ss = this.getSpreadsheet();
-      const sheet = ss.getSheetByName(sheetName);
+      lock.waitLock(15000);
+      var ss = this.getSpreadsheet();
+      var sheet = ss.getSheetByName(sheetName);
       if (!sheet) return false;
 
-      const lastRow = sheet.getLastRow();
-      const lastCol = sheet.getLastColumn();
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
       if (lastRow <= 1) return false;
 
-      const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-      const headers = data[0];
-      const idColIdx = headers.indexOf('id');
+      var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+      var headers = data[0];
+      var idColIdx = headers.indexOf('id');
       if (idColIdx === -1) return false;
 
-      for (let r = 1; r < data.length; r++) {
+      for (var r = 1; r < data.length; r++) {
         if (String(data[r][idColIdx]) === String(id)) {
           sheet.deleteRow(r + 1);
+          SpreadsheetApp.flush();
           return true;
         }
       }
       return false;
     } finally {
-      lock.releaseLock();
+      try {
+        lock.releaseLock();
+      } catch (e) {}
     }
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.SpreadsheetService = SpreadsheetService;
+}
+if (typeof global !== 'undefined') {
+  global.SpreadsheetService = SpreadsheetService;
+}

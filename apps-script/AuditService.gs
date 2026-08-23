@@ -3,25 +3,25 @@
  * Records all system mutations while strictly preventing password/secret logging.
  */
 
-const AuditService = {
+var AuditService = {
   log: function (params) {
     try {
-      const sanitizedDetails = Object.assign({}, params.details || {});
+      var sanitizedDetails = Object.assign({}, (params && params.details) || {});
       // Scrub sensitive keys
-      ['password', 'passwordHash', 'token', 'secret', 'tempPassword'].forEach((k) => {
+      ['password', 'passwordHash', 'token', 'secret', 'tempPassword'].forEach(function (k) {
         delete sanitizedDetails[k];
       });
 
-      const entry = {
+      var entry = {
         id: Utils.generateUUID(),
         timestamp: Utils.getIsoTimestamp(),
-        userId: params.userId || 'SYSTEM',
-        userName: params.userName || 'النظام الإداري',
-        userRole: params.userRole || 'SYSTEM',
-        action: params.action || 'OPERATION',
-        entityType: params.entityType || 'system',
-        entityId: params.entityId || '',
-        description: params.description || '',
+        userId: (params && params.userId) || 'SYSTEM',
+        userName: (params && params.userName) || 'النظام الإداري',
+        userRole: (params && params.userRole) || 'SYSTEM',
+        action: (params && params.action) || 'OPERATION',
+        entityType: (params && params.entityType) || 'system',
+        entityId: (params && params.entityId) || '',
+        description: (params && params.description) || '',
         detailsJson: JSON.stringify(sanitizedDetails),
       };
 
@@ -32,3 +32,10 @@ const AuditService = {
     }
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.AuditService = AuditService;
+}
+if (typeof global !== 'undefined') {
+  global.AuditService = AuditService;
+}

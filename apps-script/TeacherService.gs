@@ -3,21 +3,23 @@
  * Official Standard: 25 Lessons Weekly Target (25 Hours at 60 min/lesson).
  */
 
-const TeacherService = {
+var TeacherService = {
   getAllTeachers: function () {
-    const teachers = SpreadsheetService.getAll('Teachers');
-    return teachers.map((t) => ({
-      id: t.id,
-      code: t.code,
-      name: t.name,
-      specialization: t.specialization,
-      department: t.department || '',
-      email: t.email || '',
-      phone: t.phone || '',
-      targetWeeklyLessons: Number(t.targetWeeklyLessons) || 25,
-      active: t.active === true || t.active === 'true',
-      schoolId: t.schoolId || 'badr',
-    }));
+    var teachers = SpreadsheetService.getAll('Teachers');
+    return teachers.map(function (t) {
+      return {
+        id: t.id,
+        code: t.code,
+        name: t.name,
+        specialization: t.specialization,
+        department: t.department || '',
+        email: t.email || '',
+        phone: t.phone || '',
+        targetWeeklyLessons: Number(t.targetWeeklyLessons) || 25,
+        active: t.active === true || t.active === 'true',
+        schoolId: t.schoolId || 'badr',
+      };
+    });
   },
 
   createTeacher: function (data, user) {
@@ -25,10 +27,10 @@ const TeacherService = {
       throw new Error('اسم المعلم، الكود، والتخصص حقول مطلوبة.');
     }
 
-    const settings = SettingsService.getSettings();
-    const target = Number(data.targetWeeklyLessons) || settings.weeklyTeachingTarget || 25;
+    var settings = SettingsService.getSettings();
+    var target = Number(data.targetWeeklyLessons) || settings.weeklyTeachingTarget || 25;
 
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       code: data.code,
       name: data.name,
@@ -41,55 +43,61 @@ const TeacherService = {
       schoolId: data.schoolId || 'badr',
     };
 
-    const created = SpreadsheetService.insert('Teachers', record);
+    var created = SpreadsheetService.insert('Teachers', record);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_TEACHER',
-      entityType: 'teacher',
-      entityId: created.id,
-      description: 'إضافة معلم جديد: ' + created.name + ' (' + created.code + ')',
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_TEACHER',
+        entityType: 'teacher',
+        entityId: created.id,
+        description: 'إضافة معلم جديد: ' + created.name + ' (' + created.code + ')',
+      });
+    } catch (e) {}
 
     return created;
   },
 
   updateTeacher: function (id, updates, user) {
-    const existing = SpreadsheetService.findById('Teachers', id);
+    var existing = SpreadsheetService.findById('Teachers', id);
     if (!existing) throw new Error('المعلم غير موجود.');
 
-    const updated = SpreadsheetService.update('Teachers', id, updates);
+    var updated = SpreadsheetService.update('Teachers', id, updates);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'UPDATE_TEACHER',
-      entityType: 'teacher',
-      entityId: id,
-      description: 'تحديث بيانات المعلم: ' + existing.name,
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'UPDATE_TEACHER',
+        entityType: 'teacher',
+        entityId: id,
+        description: 'تحديث بيانات المعلم: ' + existing.name,
+      });
+    } catch (e) {}
 
     return updated;
   },
 
   deleteTeacher: function (id, user) {
-    const existing = SpreadsheetService.findById('Teachers', id);
+    var existing = SpreadsheetService.findById('Teachers', id);
     if (!existing) return true;
 
     SpreadsheetService.deleteById('Teachers', id);
 
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'DELETE_TEACHER',
-      entityType: 'teacher',
-      entityId: id,
-      description: 'حذف المعلم: ' + existing.name,
-    });
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'DELETE_TEACHER',
+        entityType: 'teacher',
+        entityId: id,
+        description: 'حذف المعلم: ' + existing.name,
+      });
+    } catch (e) {}
 
     return true;
   },
@@ -98,28 +106,36 @@ const TeacherService = {
    * Calculates teacher workload statistics against official 25-lesson standard.
    */
   calculateWorkload: function (teacherId) {
-    const teacher = SpreadsheetService.findById('Teachers', teacherId);
-    const settings = SettingsService.getSettings();
-    const lessonDuration = Number(settings.lessonDurationMinutes) || 60;
-    const targetLessons = teacher ? Number(teacher.targetWeeklyLessons) || 25 : 25;
-    const targetHours = (targetLessons * lessonDuration) / 60;
+    var teacher = SpreadsheetService.findById('Teachers', teacherId);
+    var settings = SettingsService.getSettings();
+    var lessonDuration = Number(settings.lessonDurationMinutes) || 60;
+    var targetLessons = teacher ? Number(teacher.targetWeeklyLessons) || 25 : 25;
+    var targetHours = (targetLessons * lessonDuration) / 60;
 
-    const allSlots = SpreadsheetService.getAll('Timetable');
-    const teacherSlots = allSlots.filter((s) => String(s.teacherId) === String(teacherId));
-    const scheduledLessonsCount = teacherSlots.length;
-    const scheduledHours = (scheduledLessonsCount * lessonDuration) / 60;
+    var allSlots = SpreadsheetService.getAll('Timetable');
+    var teacherSlots = allSlots.filter(function (s) {
+      return String(s.teacherId) === String(teacherId);
+    });
+    var scheduledLessonsCount = teacherSlots.length;
+    var scheduledHours = (scheduledLessonsCount * lessonDuration) / 60;
 
-    const allRecords = SpreadsheetService.getAll('TeachingRecords');
-    const teacherRecords = allRecords.filter((r) => String(r.teacherId) === String(teacherId));
-    const completedRecords = teacherRecords.filter((r) => r.lessonStatus === 'completed');
-    const completedCount = completedRecords.length;
+    var allRecords = SpreadsheetService.getAll('TeachingRecords');
+    var teacherRecords = allRecords.filter(function (r) {
+      return String(r.teacherId) === String(teacherId);
+    });
+    var completedRecords = teacherRecords.filter(function (r) {
+      return r.lessonStatus === 'completed';
+    });
+    var completedCount = completedRecords.length;
 
-    const recordsWithMaterials = completedRecords.filter((r) => r.materialsUrl && String(r.materialsUrl).trim() !== '');
+    var recordsWithMaterials = completedRecords.filter(function (r) {
+      return r.materialsUrl && String(r.materialsUrl).trim() !== '';
+    });
 
-    const documentationRate = scheduledLessonsCount > 0 ? Math.round((completedCount / scheduledLessonsCount) * 100) : 0;
-    const materialsCoverageRate = completedCount > 0 ? Math.round((recordsWithMaterials.length / completedCount) * 100) : 0;
+    var documentationRate = scheduledLessonsCount > 0 ? Math.round((completedCount / scheduledLessonsCount) * 100) : 0;
+    var materialsCoverageRate = completedCount > 0 ? Math.round((recordsWithMaterials.length / completedCount) * 100) : 0;
 
-    let workloadStatus = 'balanced';
+    var workloadStatus = 'balanced';
     if (scheduledLessonsCount > targetLessons) workloadStatus = 'overloaded';
     else if (scheduledLessonsCount < targetLessons) workloadStatus = 'underloaded';
 
@@ -141,3 +157,10 @@ const TeacherService = {
     };
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.TeacherService = TeacherService;
+}
+if (typeof global !== 'undefined') {
+  global.TeacherService = TeacherService;
+}

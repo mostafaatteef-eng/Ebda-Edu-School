@@ -2,10 +2,10 @@
  * EBDA EDU — Validation Service
  */
 
-const ValidationService = {
+var ValidationService = {
   validateUrl: function (url) {
     if (!url) return { isValid: false, error: 'الرابط فارغ.' };
-    const trimmed = String(url).trim();
+    var trimmed = String(url).trim();
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
       return { isValid: false, error: 'يجب أن يبدأ الرابط بـ https:// أو http://' };
     }
@@ -13,7 +13,14 @@ const ValidationService = {
   },
 
   validateTimeFormat: function (timeStr) {
-    const regex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    var regex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     return regex.test(timeStr);
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.ValidationService = ValidationService;
+}
+if (typeof global !== 'undefined') {
+  global.ValidationService = ValidationService;
+}

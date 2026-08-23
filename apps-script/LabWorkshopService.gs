@@ -3,7 +3,7 @@
  * Manages specialized educational facilities, occupancy tracking, and equipment allocation.
  */
 
-const LabWorkshopService = {
+var LabWorkshopService = {
   // Labs Operations
   getAllLabs: function () {
     return SpreadsheetService.getAll('Labs').map(function (l) {
@@ -27,7 +27,7 @@ const LabWorkshopService = {
     if (!data.nameAr) {
       throw new Error('اسم المعمل حقل مطلوب.');
     }
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       code: data.code || ('LAB-' + Utils.generateShortId()),
       nameAr: data.nameAr,
@@ -40,47 +40,53 @@ const LabWorkshopService = {
       status: data.status || 'active',
       schoolId: data.schoolId || 'badr',
     };
-    const created = SpreadsheetService.insert('Labs', record);
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_LAB',
-      entityType: 'lab',
-      entityId: created.id,
-      description: 'إضافة معمل ذكي جديد: ' + created.nameAr,
-    });
+    var created = SpreadsheetService.insert('Labs', record);
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_LAB',
+        entityType: 'lab',
+        entityId: created.id,
+        description: 'إضافة معمل ذكي جديد: ' + created.nameAr,
+      });
+    } catch (e) {}
     return created;
   },
 
   updateLab: function (id, updates, user) {
-    const updated = SpreadsheetService.update('Labs', id, updates);
+    var updated = SpreadsheetService.update('Labs', id, updates);
     if (updated) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'UPDATE_LAB',
-        entityType: 'lab',
-        entityId: id,
-        description: 'تحديث بيانات المعمل الذكي: ' + (updated.nameAr || id),
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'UPDATE_LAB',
+          entityType: 'lab',
+          entityId: id,
+          description: 'تحديث بيانات المعمل الذكي: ' + (updated.nameAr || id),
+        });
+      } catch (e) {}
     }
     return updated;
   },
 
   deleteLab: function (id, user) {
-    const deleted = SpreadsheetService.deleteById('Labs', id);
+    var deleted = SpreadsheetService.deleteById('Labs', id);
     if (deleted) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'DELETE_LAB',
-        entityType: 'lab',
-        entityId: id,
-        description: 'حذف المعمل الذكي: ' + id,
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'DELETE_LAB',
+          entityType: 'lab',
+          entityId: id,
+          description: 'حذف المعمل الذكي: ' + id,
+        });
+      } catch (e) {}
     }
     return deleted;
   },
@@ -108,7 +114,7 @@ const LabWorkshopService = {
     if (!data.nameAr) {
       throw new Error('اسم الورشة التدريبية حقل مطلوب.');
     }
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       code: data.code || ('WS-' + Utils.generateShortId()),
       nameAr: data.nameAr,
@@ -121,48 +127,61 @@ const LabWorkshopService = {
       status: data.status || 'active',
       schoolId: data.schoolId || 'badr',
     };
-    const created = SpreadsheetService.insert('Workshops', record);
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_WORKSHOP',
-      entityType: 'workshop',
-      entityId: created.id,
-      description: 'إضافة ورشة تدريبية جديدة: ' + created.nameAr,
-    });
+    var created = SpreadsheetService.insert('Workshops', record);
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_WORKSHOP',
+        entityType: 'workshop',
+        entityId: created.id,
+        description: 'إضافة ورشة تدريبية جديدة: ' + created.nameAr,
+      });
+    } catch (e) {}
     return created;
   },
 
   updateWorkshop: function (id, updates, user) {
-    const updated = SpreadsheetService.update('Workshops', id, updates);
+    var updated = SpreadsheetService.update('Workshops', id, updates);
     if (updated) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'UPDATE_WORKSHOP',
-        entityType: 'workshop',
-        entityId: id,
-        description: 'تحديث بيانات الورشة التدريبية: ' + (updated.nameAr || id),
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'UPDATE_WORKSHOP',
+          entityType: 'workshop',
+          entityId: id,
+          description: 'تحديث بيانات الورشة التدريبية: ' + (updated.nameAr || id),
+        });
+      } catch (e) {}
     }
     return updated;
   },
 
   deleteWorkshop: function (id, user) {
-    const deleted = SpreadsheetService.deleteById('Workshops', id);
+    var deleted = SpreadsheetService.deleteById('Workshops', id);
     if (deleted) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'DELETE_WORKSHOP',
-        entityType: 'workshop',
-        entityId: id,
-        description: 'حذف الورشة التدريبية: ' + id,
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'DELETE_WORKSHOP',
+          entityType: 'workshop',
+          entityId: id,
+          description: 'حذف الورشة التدريبية: ' + id,
+        });
+      } catch (e) {}
     }
     return deleted;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.LabWorkshopService = LabWorkshopService;
+}
+if (typeof global !== 'undefined') {
+  global.LabWorkshopService = LabWorkshopService;
+}

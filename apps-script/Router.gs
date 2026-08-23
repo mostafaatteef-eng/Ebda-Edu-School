@@ -3,23 +3,23 @@
  * Maps client API requests to dedicated backend domain services with session authorization.
  */
 
-const Router = {
+var Router = {
   handleRequest: function (e, method) {
     try {
       // Parse parameters and body
-      const params = (e && e.parameter) || {};
-      let body = {};
+      var params = (e && e.parameter) || {};
+      var body = {};
 
       if (e && e.postData && e.postData.contents) {
         body = Utils.safeJsonParse(e.postData.contents, {});
       }
 
-      const action = params.action || body.action || '';
-      const token = params.token || body.token || (e && e.parameter && e.parameter.access_token) || '';
+      var action = params.action || body.action || '';
+      var token = params.token || body.token || (e && e.parameter && e.parameter.access_token) || '';
 
       // Public / Unauthenticated Actions
-      if (action === 'ping' || action === 'health') {
-        return Utils.jsonSuccess({ status: 'healthy', version: '2.0.0', platform: 'Google Apps Script' }, 'EBDA EDU API is operational.');
+      if (action === 'ping' || action === 'health' || action === 'healthCheck') {
+        return Utils.jsonSuccess({ status: 'healthy', version: '2.0.0', platform: 'Google Apps Script', school: 'مدرسة ابدا - للعلوم التقنية - بدر' }, 'EBDA EDU API is operational.');
       }
 
       if (action === 'setup' || action === 'initialize') {
@@ -28,14 +28,14 @@ const Router = {
       }
 
       if (action === 'login') {
-        const username = body.username || params.username;
-        const password = body.password || params.password;
-        const authResult = AuthService.login(username, password);
+        var username = body.username || params.username;
+        var password = body.password || params.password;
+        var authResult = AuthService.login(username, password);
         return Utils.jsonSuccess(authResult, 'تم تسجيل الدخول بنجاح.');
       }
 
       // Authenticated Actions Required
-      const currentUser = AuthService.authenticateRequest(token);
+      var currentUser = AuthService.authenticateRequest(token);
 
       // Route Dispatcher
       switch (action) {
@@ -46,6 +46,20 @@ const Router = {
         case 'getCurrentUser':
           return Utils.jsonSuccess(currentUser);
 
+        case 'getAllData':
+          return Utils.jsonSuccess({
+            subjects: SubjectService.getAllSubjects(),
+            classes: ClassService.getAllClasses(),
+            grades: ClassService.getAllGrades(),
+            labs: LabWorkshopService.getAllLabs(),
+            workshops: LabWorkshopService.getAllWorkshops(),
+            teachers: TeacherService.getAllTeachers(),
+            settings: SettingsService.getSettings(),
+            breaks: BreakService.getAllBreaks(),
+            timetable: TimetableService.getAllSlots(),
+            teachingRecords: TeachingRecordService.getAllRecords(),
+          }, 'تم جلب كافة البيانات بنجاح من Google Sheets.');
+
         case 'getSettings':
           return Utils.jsonSuccess(SettingsService.getSettings());
 
@@ -53,7 +67,7 @@ const Router = {
           if (currentUser.role !== 'operations_manager') {
             return Utils.jsonError('FORBIDDEN', 'صلاحية تعديل الإعدادات مقتصرة على إدارة العمليات.', 403);
           }
-          const updatedSettings = SettingsService.updateSettings(body.settings || {}, currentUser.name);
+          var updatedSettings = SettingsService.updateSettings(body.settings || {}, currentUser.name);
           return Utils.jsonSuccess(updatedSettings, 'تم تحديث الإعدادات بنجاح.');
 
         case 'getDashboardStats':
@@ -213,7 +227,7 @@ const Router = {
           return Utils.jsonSuccess({ deleted: TeacherService.deleteTeacher(body.id, currentUser) });
 
         case 'getTeacherWorkload':
-          const targetTeacherId = params.teacherId || body.teacherId || currentUser.teacherId;
+          var targetTeacherId = params.teacherId || body.teacherId || currentUser.teacherId;
           return Utils.jsonSuccess(TeacherService.calculateWorkload(targetTeacherId));
 
         case 'getBreaks':
@@ -297,3 +311,10 @@ const Router = {
     }
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.Router = Router;
+}
+if (typeof global !== 'undefined') {
+  global.Router = Router;
+}

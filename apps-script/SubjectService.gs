@@ -2,7 +2,7 @@
  * EBDA EDU — Subject Management Service
  */
 
-const SubjectService = {
+var SubjectService = {
   getAllSubjects: function () {
     return SpreadsheetService.getAll('Subjects').map(function (s) {
       return {
@@ -16,7 +16,7 @@ const SubjectService = {
         department: s.department || 'عام',
         category: s.category || 'academic',
         color: s.color || '#25A09F',
-        isPractical: String(s.isPractical) === 'true',
+        isPractical: String(s.isPractical) === 'true' || s.isPractical === true,
         preferredLocationType: s.preferredLocationType || 'classroom',
         schoolId: s.schoolId || 'badr',
       };
@@ -27,7 +27,7 @@ const SubjectService = {
     if (!data.nameAr || !data.gradeId) {
       throw new Error('اسم المادة والمرحلة الدراسية حقول مطلوبة.');
     }
-    const record = {
+    var record = {
       id: Utils.generateUUID(),
       code: data.code || '',
       nameAr: data.nameAr,
@@ -42,48 +42,61 @@ const SubjectService = {
       preferredLocationType: data.preferredLocationType || 'classroom',
       schoolId: data.schoolId || 'badr',
     };
-    const created = SpreadsheetService.insert('Subjects', record);
-    AuditService.log({
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role,
-      action: 'CREATE_SUBJECT',
-      entityType: 'subject',
-      entityId: created.id,
-      description: 'إضافة مادة دراسية: ' + created.nameAr,
-    });
+    var created = SpreadsheetService.insert('Subjects', record);
+    try {
+      AuditService.log({
+        userId: user ? user.id : 'SYSTEM',
+        userName: user ? user.name : 'SYSTEM',
+        userRole: user ? user.role : 'operations_manager',
+        action: 'CREATE_SUBJECT',
+        entityType: 'subject',
+        entityId: created.id,
+        description: 'إضافة مادة دراسية: ' + created.nameAr,
+      });
+    } catch (e) {}
     return created;
   },
 
   updateSubject: function (id, updates, user) {
-    const updated = SpreadsheetService.update('Subjects', id, updates);
+    var updated = SpreadsheetService.update('Subjects', id, updates);
     if (updated) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'UPDATE_SUBJECT',
-        entityType: 'subject',
-        entityId: id,
-        description: 'تحديث بيانات المادة الدراسية: ' + (updated.nameAr || id),
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'UPDATE_SUBJECT',
+          entityType: 'subject',
+          entityId: id,
+          description: 'تحديث بيانات المادة الدراسية: ' + (updated.nameAr || id),
+        });
+      } catch (e) {}
     }
     return updated;
   },
 
   deleteSubject: function (id, user) {
-    const deleted = SpreadsheetService.deleteById('Subjects', id);
+    var deleted = SpreadsheetService.deleteById('Subjects', id);
     if (deleted) {
-      AuditService.log({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'DELETE_SUBJECT',
-        entityType: 'subject',
-        entityId: id,
-        description: 'حذف المادة الدراسية: ' + id,
-      });
+      try {
+        AuditService.log({
+          userId: user ? user.id : 'SYSTEM',
+          userName: user ? user.name : 'SYSTEM',
+          userRole: user ? user.role : 'operations_manager',
+          action: 'DELETE_SUBJECT',
+          entityType: 'subject',
+          entityId: id,
+          description: 'حذف المادة الدراسية: ' + id,
+        });
+      } catch (e) {}
     }
     return deleted;
   },
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.SubjectService = SubjectService;
+}
+if (typeof global !== 'undefined') {
+  global.SubjectService = SubjectService;
+}
