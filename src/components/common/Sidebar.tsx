@@ -29,6 +29,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Link,
+  Cloud,
+  RefreshCw,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { NTSSEmblem } from './NTSSLogo';
@@ -69,9 +73,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     conflicts,
     smartAlerts,
     settings,
+    syncStatus,
+    lastSyncTime,
+    googleSheetUrl,
+    syncWithSheet,
   } = useApp();
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isSyncingFromSidebar, setIsSyncingFromSidebar] = useState(false);
 
   // Profile Edit Form State
   const [editName, setEditName] = useState(currentUser.name);
@@ -412,6 +421,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* User Card & Profile at Bottom of Sidebar */}
         <div className="p-3 border-t border-white/10 bg-black/15 space-y-2">
+          {/* Live Google Sheet Realtime Sync Card */}
+          <div className="p-2.5 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="w-7 h-7 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div className="text-right overflow-hidden">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-black text-white truncate">Google Sheets</span>
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                  </span>
+                </div>
+                <div className="text-[9px] text-teal-200 truncate">
+                  {syncStatus === 'syncing' ? 'جاري المزامنة...' : 'مزامنة لحظية ثنائية'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsSyncingFromSidebar(true);
+                  await syncWithSheet(false);
+                  setIsSyncingFromSidebar(false);
+                }}
+                disabled={isSyncingFromSidebar || syncStatus === 'syncing'}
+                title="مزامنة وسحب التحديثات من الشيت الآن"
+                className="p-1.5 rounded-lg bg-white/15 hover:bg-white/30 text-white transition cursor-pointer disabled:opacity-50"
+              >
+                {isSyncingFromSidebar || syncStatus === 'syncing' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+              </button>
+
+              {googleSheetUrl && (
+                <a
+                  href={googleSheetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="فتح شيت الإكسيل في Google Sheets"
+                  className="p-1.5 rounded-lg bg-white/15 hover:bg-white/30 text-white transition cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+
           {/* User Profile Summary Card */}
           <div className="p-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 overflow-hidden">

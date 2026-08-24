@@ -34,6 +34,7 @@ export interface ApiResponse<T = any> {
 
 class ApiClient {
   private apiUrl: string;
+  private googleSheetUrl: string;
   private token: string | null = null;
 
   constructor() {
@@ -41,6 +42,11 @@ class ApiClient {
     const savedUrl = typeof window !== 'undefined' ? localStorage.getItem('ebda_apps_script_url') : null;
     const defaultDeploymentUrl = 'https://script.google.com/macros/s/AKfycbzTPm---69OsRwrT4NAc5tSHaglS_GynvGbVWVWSUQnUk-ELFauyMiDyHdf5Yyzcln6/exec';
     this.apiUrl = (savedUrl || import.meta.env.VITE_API_URL || defaultDeploymentUrl).trim();
+
+    const savedSheetUrl = typeof window !== 'undefined' ? localStorage.getItem('ebda_google_sheet_url') : null;
+    const defaultSheetUrl = 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit';
+    this.googleSheetUrl = (savedSheetUrl || import.meta.env.VITE_GOOGLE_SHEET_URL || defaultSheetUrl).trim();
+
     if (typeof window !== 'undefined') {
       this.token = sessionStorage.getItem('ebda_session_token');
     }
@@ -57,6 +63,21 @@ class ApiClient {
         localStorage.setItem('ebda_apps_script_url', this.apiUrl);
       } else {
         localStorage.removeItem('ebda_apps_script_url');
+      }
+    }
+  }
+
+  public getGoogleSheetUrl(): string {
+    return this.googleSheetUrl;
+  }
+
+  public setGoogleSheetUrl(url: string) {
+    this.googleSheetUrl = (url || '').trim();
+    if (typeof window !== 'undefined') {
+      if (this.googleSheetUrl) {
+        localStorage.setItem('ebda_google_sheet_url', this.googleSheetUrl);
+      } else {
+        localStorage.removeItem('ebda_google_sheet_url');
       }
     }
   }
@@ -149,8 +170,38 @@ class ApiClient {
   }
 
   // Health check / Ping
-  async healthCheck(): Promise<ApiResponse<{ status: string; timestamp: string }>> {
+  async healthCheck(): Promise<ApiResponse<{ status: string; timestamp: string; platform?: string; school?: string }>> {
     return this.request('healthCheck', {}, 'GET');
+  }
+
+  // Two-Way Sync Operations
+  async getAllData(): Promise<ApiResponse<{
+    subjects?: Subject[];
+    classes?: SchoolClass[];
+    grades?: Grade[];
+    labs?: Lab[];
+    workshops?: Workshop[];
+    teachers?: Teacher[];
+    settings?: SystemSettings;
+    breaks?: SchoolBreak[];
+    timetable?: TimetableSlot[];
+    teachingRecords?: TeachingRecord[];
+  }>> {
+    return this.request('getAllData', {}, 'GET');
+  }
+
+  async pushAllData(data: {
+    teachers?: Teacher[];
+    subjects?: Subject[];
+    classes?: SchoolClass[];
+    breaks?: SchoolBreak[];
+    labs?: Lab[];
+    workshops?: Workshop[];
+    timetable?: TimetableSlot[];
+    teachingRecords?: TeachingRecord[];
+    settings?: Partial<SystemSettings>;
+  }): Promise<ApiResponse<{ synced: boolean; timestamp: string }>> {
+    return this.request('pushAllData', { data });
   }
 
   // Authentication
@@ -266,6 +317,18 @@ class ApiClient {
     return this.request<Grade[]>('getGrades', {}, 'GET');
   }
 
+  async createGrade(grade: Omit<Grade, 'id'>): Promise<ApiResponse<Grade>> {
+    return this.request<Grade>('createGrade', { grade });
+  }
+
+  async updateGrade(id: string, updates: Partial<Grade>): Promise<ApiResponse<Grade>> {
+    return this.request<Grade>('updateGrade', { id, updates });
+  }
+
+  async deleteGrade(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    return this.request('deleteGrade', { id });
+  }
+
   // Smart Labs
   async getLabs(): Promise<ApiResponse<Lab[]>> {
     return this.request<Lab[]>('getLabs', {}, 'GET');
@@ -345,6 +408,10 @@ class ApiClient {
 
   async updateTeachingRecord(id: string, updates: Partial<TeachingRecord>): Promise<ApiResponse<TeachingRecord>> {
     return this.request<TeachingRecord>('updateTeachingRecord', { id, updates });
+  }
+
+  async deleteTeachingRecord(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    return this.request('deleteTeachingRecord', { id });
   }
 
   async toggleParentVisibility(id: string, visible: boolean): Promise<ApiResponse<TeachingRecord>> {

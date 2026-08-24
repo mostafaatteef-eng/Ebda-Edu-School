@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import {
   User,
   School,
@@ -52,6 +52,7 @@ import {
   calculateBreakDuration,
 } from '../utils/businessRules';
 import { hashPassword, validatePassword, sanitizeUser, generateTemporaryPassword, verifyPasswordHash } from '../utils/security';
+import { apiClient } from '../services/apiClient';
 
 interface AppContextType {
   // Authentication & Role
@@ -94,6 +95,19 @@ interface AppContextType {
   conflicts: TimetableConflict[];
   smartAlerts: SmartAlert[];
   getTeacherWorkload: (teacherId: string) => import('../types').TeacherWorkloadSummary;
+
+  // Two-Way Google Sheets Live Sync
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  lastSyncTime: Date | null;
+  syncErrorMessage: string | null;
+  googleSheetUrl: string;
+  setGoogleSheetUrl: (url: string) => void;
+  appsScriptUrl: string;
+  setAppsScriptUrl: (url: string) => void;
+  autoSyncEnabled: boolean;
+  setAutoSyncEnabled: (enabled: boolean) => void;
+  syncWithSheet: (isBackground?: boolean) => Promise<{ success: boolean; message?: string }>;
+  pushAllToSheet: () => Promise<{ success: boolean; message?: string }>;
 
   // CRUD Operations - Breaks (School Breaks Configuration)
   addBreak: (breakData: Omit<SchoolBreak, 'id'>) => { success: boolean; break?: SchoolBreak; error?: string };
@@ -227,6 +241,187 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [resolvedAlertIds, setResolvedAlertIds] = useState<string[]>(() => loadSaved('resolvedAlertIds', []));
   const [roles, setRoles] = useState<RoleDefinition[]>(() => loadSaved('roles', INITIAL_ROLES));
   const [permissions] = useState<PermissionDefinition[]>(SYSTEM_PERMISSIONS);
+
+  // Two-Way Google Sheets Live Synchronization State
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const [googleSheetUrl, setGoogleSheetUrlState] = useState<string>(() => apiClient.getGoogleSheetUrl());
+  const [appsScriptUrl, setAppsScriptUrlState] = useState<string>(() => apiClient.getApiUrl());
+  const [autoSyncEnabled, setAutoSyncEnabledState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_autoSyncEnabled`);
+      if (saved !== null) return JSON.parse(saved);
+    } catch (e) {
+      // default
+    }
+    return import.meta.env.VITE_ENABLE_AUTO_SYNC !== 'false';
+  });
+
+  const setGoogleSheetUrl = (url: string) => {
+    const trimmed = (url || '').trim();
+    setGoogleSheetUrlState(trimmed);
+    apiClient.setGoogleSheetUrl(trimmed);
+  };
+
+  const setAppsScriptUrl = (url: string) => {
+    const trimmed = (url || '').trim();
+    setAppsScriptUrlState(trimmed);
+    apiClient.setApiUrl(trimmed);
+  };
+
+  const setAutoSyncEnabled = (enabled: boolean) => {
+    setAutoSyncEnabledState(enabled);
+    localStorage.setItem(`${STORAGE_KEY}_autoSyncEnabled`, JSON.stringify(enabled));
+  };
+
+  // Helper to push individual changes to Google Sheets in the background
+  const pushChangeToSheet = useCallback((actionPromise: () => Promise<any>) => {
+    if (!apiClient.isConfigured()) return;
+    actionPromise()
+      .then((res) => {
+        if (res && res.success) {
+          setLastSyncTime(new Date());
+          setSyncStatus('synced');
+          setSyncErrorMessage(null);
+        }
+      })
+      .catch((e) => {
+        console.warn('Background sync push warning:', e);
+      });
+  }, []);
+
+  // Pull all data from Google Sheets into the React System
+  const syncWithSheet = useCallback(async (isBackground: boolean = false): Promise<{ success: boolean; message?: string }> => {
+    if (!apiClient.isConfigured()) {
+      if (!isBackground) {
+        setSyncStatus('error');
+        setSyncErrorMessage('رابط Google Apps Script غير مهيأ');
+      }
+      return { success: false, message: 'رابط Google Apps Script غير مهيأ.' };
+    }
+
+    if (!isBackground) {
+      setSyncStatus('syncing');
+    }
+
+    try {
+      const res = await apiClient.getAllData();
+      if (res.success && res.data) {
+        const d = res.data;
+        if (d.teachers && Array.isArray(d.teachers) && d.teachers.length > 0) {
+          setTeachers(d.teachers);
+        }
+        if (d.subjects && Array.isArray(d.subjects) && d.subjects.length > 0) {
+          setSubjects(d.subjects);
+        }
+        if (d.classes && Array.isArray(d.classes) && d.classes.length > 0) {
+          setClasses(d.classes);
+        }
+        if (d.grades && Array.isArray(d.grades) && d.grades.length > 0) {
+          setGrades(d.grades);
+        }
+        if (d.breaks && Array.isArray(d.breaks) && d.breaks.length > 0) {
+          setBreaks(d.breaks);
+        }
+        if (d.labs && Array.isArray(d.labs) && d.labs.length > 0) {
+          setLabs(d.labs);
+        }
+        if (d.workshops && Array.isArray(d.workshops) && d.workshops.length > 0) {
+          setWorkshops(d.workshops);
+        }
+        if (d.timetable && Array.isArray(d.timetable)) {
+          setTimetableSlots(d.timetable);
+        }
+        if (d.teachingRecords && Array.isArray(d.teachingRecords)) {
+          setTeachingRecords(d.teachingRecords);
+        }
+        if (d.settings) {
+          setSettings((prev) => ({ ...prev, ...d.settings }));
+        }
+        setSyncStatus('synced');
+        setLastSyncTime(new Date());
+        setSyncErrorMessage(null);
+        return { success: true, message: 'تمت مزامنة كافة البيانات من Google Sheets بنجاح!' };
+      } else {
+        if (!isBackground) {
+          setSyncStatus('error');
+          setSyncErrorMessage(res.error?.message || 'فشلت المزامنة مع الشيت.');
+        }
+        return { success: false, message: res.error?.message || 'فشلت المزامنة.' };
+      }
+    } catch (err: any) {
+      if (!isBackground) {
+        setSyncStatus('error');
+        setSyncErrorMessage(err.message || 'خطأ في الاتصال بالخادم.');
+      }
+      return { success: false, message: err.message };
+    }
+  }, []);
+
+  // Push all data from System to Google Sheets
+  const pushAllToSheet = useCallback(async (): Promise<{ success: boolean; message?: string }> => {
+    if (!apiClient.isConfigured()) {
+      setSyncStatus('error');
+      setSyncErrorMessage('رابط Google Apps Script غير مهيأ');
+      return { success: false, message: 'رابط Google Apps Script غير مهيأ.' };
+    }
+
+    setSyncStatus('syncing');
+    try {
+      const res = await apiClient.pushAllData({
+        teachers,
+        subjects,
+        classes,
+        breaks,
+        labs,
+        workshops,
+        timetable: timetableSlots,
+        teachingRecords,
+        settings,
+      });
+
+      if (res.success) {
+        setSyncStatus('synced');
+        setLastSyncTime(new Date());
+        setSyncErrorMessage(null);
+        return { success: true, message: 'تم حفظ ومزامنة كافة بيانات النظام داخل شيت Google Sheets بنجاح!' };
+      } else {
+        setSyncStatus('error');
+        setSyncErrorMessage(res.error?.message || 'فشل إرسال البيانات للشيت.');
+        return { success: false, message: res.error?.message || 'فشل الحفظ في الشيت.' };
+      }
+    } catch (err: any) {
+      setSyncStatus('error');
+      setSyncErrorMessage(err.message || 'خطأ أثناء الحفظ بالشيت.');
+      return { success: false, message: err.message };
+    }
+  }, [teachers, subjects, classes, breaks, labs, workshops, timetableSlots, teachingRecords, settings]);
+
+  // Live Auto-Sync Polling Interval and Window Focus Listener
+  useEffect(() => {
+    if (!autoSyncEnabled || !apiClient.isConfigured()) return;
+
+    // Initial background sync
+    syncWithSheet(true);
+
+    const intervalSeconds = Number(import.meta.env.VITE_AUTO_SYNC_INTERVAL) || 20;
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        syncWithSheet(true);
+      }
+    }, intervalSeconds * 1000);
+
+    const handleFocus = () => {
+      syncWithSheet(true);
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [autoSyncEnabled, syncWithSheet]);
 
   // Current logged in user (default: Operations Manager for instant rich experience)
   const [currentUserId, setCurrentUserId] = useState<string>(() => loadSaved('currentUserId', 'u-ops'));
@@ -585,6 +780,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAllUsers((prev) => [...prev, newUser]);
 
     logActivity('CREATE', 'teacher', newId, `إضافة معلم جديد: ${data.name} (${data.specialization}) بنصاب مستهدف ${data.targetWeeklyLessons} حصة/ساعة`, undefined, JSON.stringify(newTeacher));
+    pushChangeToSheet(() => apiClient.createTeacher(newTeacher));
   };
 
   const updateTeacher = (id: string, updates: Partial<Teacher>) => {
@@ -615,14 +811,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       JSON.stringify(prev),
       JSON.stringify(updates)
     );
+    pushChangeToSheet(() => apiClient.updateTeacher(id, updates));
   };
 
   const deleteTeacher = (id: string) => {
     const teacher = teachers.find((t) => t.id === id);
     setTeachers((prev) => prev.filter((t) => t.id !== id));
     setAllUsers((prev) => prev.filter((u) => u.teacherId !== id));
-    // Soft clean or notify slots
     logActivity('DELETE', 'teacher', id, `حذف المعلم: ${teacher?.name || id}`, JSON.stringify(teacher));
+    pushChangeToSheet(() => apiClient.deleteTeacher(id));
   };
 
   // CRUD Subjects
@@ -631,18 +828,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newSubject: Subject = { ...data, id: newId };
     setSubjects((prev) => [...prev, newSubject]);
     logActivity('CREATE', 'subject', newId, `إضافة مادة دراسية جديدة: ${data.nameAr} (${data.code}) بنصاب ${data.weeklyLessonsRequired} حصص أسبوعياً`, undefined, JSON.stringify(newSubject));
+    pushChangeToSheet(() => apiClient.createSubject(newSubject));
   };
 
   const updateSubject = (id: string, updates: Partial<Subject>) => {
     const prev = subjects.find((s) => s.id === id);
     setSubjects((current) => current.map((s) => (s.id === id ? { ...s, ...updates } : s)));
     logActivity('UPDATE', 'subject', id, `تحديث المادة الدراسية: ${prev?.nameAr || id}`, JSON.stringify(prev), JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateSubject(id, updates));
   };
 
   const deleteSubject = (id: string) => {
     const sub = subjects.find((s) => s.id === id);
     setSubjects((prev) => prev.filter((s) => s.id !== id));
     logActivity('DELETE', 'subject', id, `حذف المادة الدراسية: ${sub?.nameAr || id}`, JSON.stringify(sub));
+    pushChangeToSheet(() => apiClient.deleteSubject(id));
   };
 
   // CRUD Grades & Classes
@@ -651,16 +851,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newGrade: Grade = { ...data, id: newId };
     setGrades((prev) => [...prev, newGrade]);
     logActivity('CREATE', 'grade', newId, `إضافة صف دراسي: ${data.nameAr}`, undefined, JSON.stringify(newGrade));
+    pushChangeToSheet(() => apiClient.createGrade(newGrade));
   };
 
   const updateGrade = (id: string, updates: Partial<Grade>) => {
     setGrades((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
     logActivity('UPDATE', 'grade', id, `تحديث الصف الدراسي: ${id}`, undefined, JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateGrade(id, updates));
   };
 
   const deleteGrade = (id: string) => {
     setGrades((prev) => prev.filter((g) => g.id !== id));
     logActivity('DELETE', 'grade', id, `حذف الصف الدراسي: ${id}`);
+    pushChangeToSheet(() => apiClient.deleteGrade(id));
   };
 
   const addClass = (data: Omit<SchoolClass, 'id'>) => {
@@ -668,16 +871,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newCls: SchoolClass = { ...data, id: newId };
     setClasses((prev) => [...prev, newCls]);
     logActivity('CREATE', 'class', newId, `إضافة فصل دراسي: ${data.nameAr} (${data.code})`, undefined, JSON.stringify(newCls));
+    pushChangeToSheet(() => apiClient.createClass(newCls));
   };
 
   const updateClass = (id: string, updates: Partial<SchoolClass>) => {
     setClasses((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
     logActivity('UPDATE', 'class', id, `تحديث الفصل الدراسي: ${id}`, undefined, JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateClass(id, updates));
   };
 
   const deleteClass = (id: string) => {
     setClasses((prev) => prev.filter((c) => c.id !== id));
     logActivity('DELETE', 'class', id, `حذف الفصل الدراسي: ${id}`);
+    pushChangeToSheet(() => apiClient.deleteClass(id));
   };
 
   // CRUD Labs & Workshops
@@ -686,16 +892,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newLab: Lab = { ...data, id: newId };
     setLabs((prev) => [...prev, newLab]);
     logActivity('CREATE', 'lab', newId, `إضافة معمل جديد: ${data.nameAr} (${data.code}) بسعة ${data.capacity} طالب`, undefined, JSON.stringify(newLab));
+    pushChangeToSheet(() => apiClient.createLab(newLab));
   };
 
   const updateLab = (id: string, updates: Partial<Lab>) => {
     setLabs((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
     logActivity('UPDATE', 'lab', id, `تحديث بيانات المعمل: ${id}`, undefined, JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateLab(id, updates));
   };
 
   const deleteLab = (id: string) => {
     setLabs((prev) => prev.filter((l) => l.id !== id));
     logActivity('DELETE', 'lab', id, `حذف المعمل: ${id}`);
+    pushChangeToSheet(() => apiClient.deleteLab(id));
   };
 
   const addWorkshop = (data: Omit<Workshop, 'id'>) => {
@@ -703,16 +912,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newWs: Workshop = { ...data, id: newId };
     setWorkshops((prev) => [...prev, newWs]);
     logActivity('CREATE', 'workshop', newId, `إضافة ورشة تدريبية جديدة: ${data.nameAr} (${data.code})`, undefined, JSON.stringify(newWs));
+    pushChangeToSheet(() => apiClient.createWorkshop(newWs));
   };
 
   const updateWorkshop = (id: string, updates: Partial<Workshop>) => {
     setWorkshops((prev) => prev.map((w) => (w.id === id ? { ...w, ...updates } : w)));
     logActivity('UPDATE', 'workshop', id, `تحديث بيانات الورشة: ${id}`, undefined, JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateWorkshop(id, updates));
   };
 
   const deleteWorkshop = (id: string) => {
     setWorkshops((prev) => prev.filter((w) => w.id !== id));
     logActivity('DELETE', 'workshop', id, `حذف الورشة: ${id}`);
+    pushChangeToSheet(() => apiClient.deleteWorkshop(id));
   };
 
   // CRUD Curriculum
@@ -752,6 +964,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setBreaks((prev) => [...prev, newBreak]);
     logActivity('CREATE', 'settings', newId, `إضافة فترة استراحة جديدة: ${data.name} (${data.startTime} - ${data.endTime})`, undefined, JSON.stringify(newBreak));
+    pushChangeToSheet(() => apiClient.createBreak(newBreak));
     return { success: true, break: newBreak };
   };
 
@@ -775,6 +988,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setBreaks((prev) => prev.map((b) => (b.id === id ? updatedBreak : b)));
     logActivity('UPDATE', 'settings', id, `تعديل فترة الاستراحة: ${updatedBreak.name}`, JSON.stringify(existing), JSON.stringify(updatedBreak));
+    pushChangeToSheet(() => apiClient.updateBreak(id, updates));
     return { success: true, break: updatedBreak };
   };
 
@@ -785,6 +999,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     setBreaks((prev) => prev.filter((b) => b.id !== id));
     logActivity('DELETE', 'settings', id, `حذف فترة الاستراحة: ${existing.name}`, JSON.stringify(existing));
+    pushChangeToSheet(() => apiClient.deleteBreak(id));
     return { success: true };
   };
 
@@ -846,6 +1061,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       JSON.stringify(newSlot)
     );
 
+    pushChangeToSheet(() => apiClient.createTimetableSlot(newSlot));
+
     return {
       success: true,
       conflict: slotConflict,
@@ -886,6 +1103,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setTimetableSlots(nextSlots);
     logActivity('UPDATE', 'timetable', id, `تعديل الحصة المجدولة ${id}`, JSON.stringify(prev), JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateTimetableSlot(id, updates));
 
     return {
       success: true,
@@ -897,6 +1115,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const slot = timetableSlots.find((s) => s.id === id);
     setTimetableSlots((prev) => prev.filter((s) => s.id !== id));
     logActivity('DELETE', 'timetable', id, `حذف الحصة المجدولة من الجدول الأسبوعي: ${id}`, JSON.stringify(slot));
+    pushChangeToSheet(() => apiClient.deleteTimetableSlot(id));
   };
 
   const batchImportSlots = (newSlots: Omit<TimetableSlot, 'id'>[]) => {
@@ -947,6 +1166,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       JSON.stringify(newRecord)
     );
 
+    pushChangeToSheet(() => apiClient.recordLesson(newRecord));
+
     return { success: true, record: newRecord };
   };
 
@@ -965,6 +1186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       current.map((r) => (r.id === id ? { ...r, ...updates, lastUpdatedAt: new Date().toISOString() } : r))
     );
     logActivity('UPDATE', 'teaching_record', id, `تعديل توثيق الحصة: ${id}`, JSON.stringify(prev), JSON.stringify(updates));
+    pushChangeToSheet(() => apiClient.updateTeachingRecord(id, updates));
     return { success: true };
   };
 
@@ -972,6 +1194,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const rec = teachingRecords.find((r) => r.id === id);
     setTeachingRecords((prev) => prev.filter((r) => r.id !== id));
     logActivity('DELETE', 'teaching_record', id, `حذف سجل توثيق الحصة: ${rec?.lessonTopic || id}`, JSON.stringify(rec));
+    pushChangeToSheet(() => apiClient.deleteTeachingRecord(id));
   };
 
   const toggleParentVisibility = (recordId: string, visible: boolean) => {
@@ -1156,6 +1379,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const prev = { ...settings };
     setSettings((current) => ({ ...current, ...newSettings }));
     logActivity('UPDATE', 'settings', 'global', `تحديث إعدادات النظام والتشغيل`, JSON.stringify(prev), JSON.stringify(newSettings));
+    pushChangeToSheet(() => apiClient.updateSettings(newSettings));
   };
 
   // Reset to seed data
@@ -1219,6 +1443,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         conflicts,
         smartAlerts,
         getTeacherWorkload,
+        syncStatus,
+        lastSyncTime,
+        syncErrorMessage,
+        googleSheetUrl,
+        setGoogleSheetUrl,
+        appsScriptUrl,
+        setAppsScriptUrl,
+        autoSyncEnabled,
+        setAutoSyncEnabled,
+        syncWithSheet,
+        pushAllToSheet,
         addBreak,
         updateBreak,
         deleteBreak,

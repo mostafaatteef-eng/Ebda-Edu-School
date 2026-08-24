@@ -44,16 +44,27 @@ export const SettingsView: React.FC = () => {
     timetableSlots,
     teachingRecords,
     resetToDefaultData,
+    syncStatus,
+    lastSyncTime,
+    syncErrorMessage,
+    googleSheetUrl,
+    setGoogleSheetUrl,
+    appsScriptUrl,
+    setAppsScriptUrl,
+    autoSyncEnabled,
+    setAutoSyncEnabled,
+    syncWithSheet,
+    pushAllToSheet,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'periods' | 'breaks' | 'profile' | 'policies' | 'cloud'>('periods');
 
   // Cloud Sync / Apps Script states
-  const [cloudApiUrl, setCloudApiUrl] = useState(() => {
-    return apiClient.getApiUrl() || 'https://script.google.com/macros/s/AKfycbzTPm---69OsRwrT4NAc5tSHaglS_GynvGbVWVWSUQnUk-ELFauyMiDyHdf5Yyzcln6/exec';
-  });
+  const [cloudApiUrl, setCloudApiUrl] = useState(appsScriptUrl);
+  const [sheetUrlInput, setSheetUrlInput] = useState(googleSheetUrl);
   const [testingConnection, setTestingConnection] = useState(false);
   const [syncingData, setSyncingData] = useState(false);
+  const [pushingData, setPushingData] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{
     tested: boolean;
     success: boolean;
@@ -63,13 +74,13 @@ export const SettingsView: React.FC = () => {
   const handleSaveApiUrl = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUrl = cloudApiUrl.trim();
-    apiClient.setApiUrl(cleanUrl);
+    const cleanSheet = sheetUrlInput.trim();
+    setAppsScriptUrl(cleanUrl);
+    setGoogleSheetUrl(cleanSheet);
     setConnectionStatus({
       tested: true,
       success: true,
-      message: cleanUrl
-        ? 'تم حفظ وتحديث رابط الـ Web App API بنجاح.'
-        : 'تمت إزالة الرابط والتحويل للوضع المحلي (Local Offline Mode).',
+      message: 'تم حفظ وتطبيق روابط Google Apps Script وشيت Google Sheets بنجاح.',
     });
   };
 
@@ -83,7 +94,7 @@ export const SettingsView: React.FC = () => {
       });
       return;
     }
-    apiClient.setApiUrl(cleanUrl);
+    setAppsScriptUrl(cleanUrl);
     setTestingConnection(true);
     setConnectionStatus(null);
 
@@ -93,7 +104,7 @@ export const SettingsView: React.FC = () => {
         setConnectionStatus({
           tested: true,
           success: true,
-          message: 'الاتصال ناجح ومستقر! الخادم متصل بنجاح مع Google Apps Script وقاعدة بيانات Google Sheets.',
+          message: 'الاتصال ناجح ومستقر! النظام متصل ومربوط مباشرة مع Google Apps Script وشيت Google Sheets.',
         });
       } else {
         setConnectionStatus({
@@ -113,41 +124,43 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleSyncData = async () => {
-    const cleanUrl = cloudApiUrl.trim();
-    if (!cleanUrl) {
-      setConnectionStatus({
-        tested: true,
-        success: false,
-        message: 'يرجى إدخال رابط Google Apps Script أولاً.',
-      });
-      return;
-    }
-    apiClient.setApiUrl(cleanUrl);
+  const handlePullFromSheet = async () => {
     setSyncingData(true);
     try {
-      const res = await apiClient.getSettings();
-      if (res.success) {
-        setConnectionStatus({
-          tested: true,
-          success: true,
-          message: `تم التحقق من مزامنة شيت الإعدادات والجداول بنجاح (${new Date().toLocaleTimeString('ar-EG')}).`,
-        });
-      } else {
-        setConnectionStatus({
-          tested: true,
-          success: true,
-          message: 'تم الاتصال بالخادم بنجاح وجاهزية المزامنة مع الشيت.',
-        });
-      }
+      const res = await syncWithSheet(false);
+      setConnectionStatus({
+        tested: true,
+        success: res.success,
+        message: res.message || (res.success ? 'تم جلب وتحديث كافة البيانات من Google Sheets بنجاح!' : 'فشل سحب البيانات من الشيت.'),
+      });
     } catch (err: any) {
       setConnectionStatus({
         tested: true,
         success: false,
-        message: err.message || 'تعذر إتمام المزامنة المباشرة مع الشيت.',
+        message: err.message || 'تعذر سحب البيانات من الشيت.',
       });
     } finally {
       setSyncingData(false);
+    }
+  };
+
+  const handlePushToSheet = async () => {
+    setPushingData(true);
+    try {
+      const res = await pushAllToSheet();
+      setConnectionStatus({
+        tested: true,
+        success: res.success,
+        message: res.message || (res.success ? 'تم تصدير وحفظ كافة بيانات النظام في Google Sheets بنجاح!' : 'فشل تصدير البيانات إلى الشيت.'),
+      });
+    } catch (err: any) {
+      setConnectionStatus({
+        tested: true,
+        success: false,
+        message: err.message || 'تعذر إرسال البيانات إلى الشيت.',
+      });
+    } finally {
+      setPushingData(false);
     }
   };
 
@@ -534,26 +547,43 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Content: Cloud Google Apps Script Web App API */}
+      {/* Tab Content: Cloud Google Apps Script & Google Sheets Two-Way Sync */}
       {activeTab === 'cloud' && (
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
                 <Cloud className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                  ربط الخادم وقاعدة البيانات السحابية (Google Apps Script Web App)
+                  الربط والمزامنة اللحظية ثنائية الاتجاه (Google Sheets & Apps Script)
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  مزامنة بيانات الجداول المدرسية، المعلمين، المعامل، والتوثيق مباشرة مع Google Sheets
+                  أي تعديل في شيت الإكسيل يسمع فوراً في السيستم، وأي تعديل في السيستم يسمع فوراً داخل الشيت
                 </p>
               </div>
             </div>
-            <Badge variant={apiClient.isConfigured() ? 'success' : 'neutral'} size="sm" dot>
-              {apiClient.isConfigured() ? 'مربوط بالسحابة (Apps Script Active)' : 'الوضع المحلي'}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={syncStatus === 'synced' ? 'success' : syncStatus === 'syncing' ? 'info' : syncStatus === 'error' ? 'danger' : 'neutral'}
+                size="sm"
+                dot
+              >
+                {syncStatus === 'syncing'
+                  ? 'جاري المزامنة...'
+                  : syncStatus === 'synced'
+                  ? 'متصل ومتزامن لحظياً'
+                  : syncStatus === 'error'
+                  ? 'خطأ في المزامنة'
+                  : 'الوضع المحلي'}
+              </Badge>
+              {lastSyncTime && (
+                <span className="text-[11px] font-bold text-slate-400">
+                  آخر مزامنة: {lastSyncTime.toLocaleTimeString('ar-EG')}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Connection Status Feedback */}
@@ -573,6 +603,72 @@ export const SettingsView: React.FC = () => {
               <span>{connectionStatus.message}</span>
             </div>
           )}
+
+          {/* Real-Time Live Sync Status & Switch */}
+          <div className="p-4 sm:p-5 bg-linear-to-r from-teal-50/70 to-indigo-50/70 border border-teal-100 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-black text-xs text-slate-900">
+                <span className="relative flex h-2.5 w-2.5">
+                  {autoSyncEnabled && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>}
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${autoSyncEnabled ? 'bg-teal-500' : 'bg-slate-300'}`}></span>
+                </span>
+                <span>المزامنة التلقائية اللحظية (Real-Time Background Sync)</span>
+              </div>
+              <p className="text-[11px] text-slate-600 max-w-xl">
+                عند تفعيل هذا الخيار، يقوم النظام بفحص شيت Google Sheets تلقائياً وبشكل دوري وتحديث الشاشات لحظياً عند وجود أي تعديل من طرف الشيت أو مستخدمين آخرين.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setAutoSyncEnabled(!autoSyncEnabled)}
+                className={`px-4 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  autoSyncEnabled
+                    ? 'bg-teal-600 text-white shadow-xs shadow-teal-500/30'
+                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                }`}
+              >
+                {autoSyncEnabled ? 'المزامنة التلقائية: مفعّلة' : 'المزامنة التلقائية: معطّلة'}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Action Sync Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handlePullFromSheet}
+              disabled={syncingData}
+              className="p-4 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-2xl flex items-center justify-between text-right transition group cursor-pointer disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center">
+                  {syncingData ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUpDown className="w-5 h-5" />}
+                </div>
+                <div>
+                  <div className="text-xs font-black text-teal-950">سحب التحديثات من الشيت الآن (Pull from Sheet)</div>
+                  <div className="text-[11px] text-teal-700">جلب أحدث التعديلات والبيانات المضافة في Google Sheets</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePushToSheet}
+              disabled={pushingData}
+              className="p-4 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-2xl flex items-center justify-between text-right transition group cursor-pointer disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                  {pushingData ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                </div>
+                <div>
+                  <div className="text-xs font-black text-indigo-950">تصدير وحفظ الكل في الشيت (Push All to Sheet)</div>
+                  <div className="text-[11px] text-indigo-700">كتابة وتحديث جميع جداول النظام داخل شيت الإكسيل دفعة واحدة</div>
+                </div>
+              </div>
+            </button>
+          </div>
 
           {/* Cloud Database Summary Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -595,6 +691,39 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <form onSubmit={handleSaveApiUrl} className="space-y-4">
+            {/* Google Spreadsheet URL Input with Open link */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  رابط شيت الإكسيل المربوط به (Google Sheet URL)
+                </label>
+                {sheetUrlInput && (
+                  <a
+                    href={sheetUrlInput}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline"
+                  >
+                    <span>فتح الشيت في نافذة جديدة</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type="url"
+                  value={sheetUrlInput}
+                  onChange={(e) => setSheetUrlInput(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                  className="w-full px-3.5 py-3 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition text-left"
+                  dir="ltr"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                رابط الشيت المعتمد لقاعدة بيانات النظام المدرسي.
+              </p>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 رابط تطبيق الويب (Google Apps Script Web App Exec URL)
@@ -629,46 +758,15 @@ export const SettingsView: React.FC = () => {
                   )}
                   <span>{testingConnection ? 'جاري الفحص...' : 'فحص الاتصال (Ping)'}</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={handleSyncData}
-                  disabled={syncingData}
-                  className="px-4 py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {syncingData ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <ArrowUpDown className="w-4 h-4" />
-                  )}
-                  <span>{syncingData ? 'جاري التحقق...' : 'مزامنة مع الشيت'}</span>
-                </button>
               </div>
 
               <div className="flex items-center gap-2">
-                {cloudApiUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCloudApiUrl('');
-                      apiClient.setApiUrl('');
-                      setConnectionStatus({
-                        tested: true,
-                        success: true,
-                        message: 'تم مسح الرابط والتحويل للوضع المحلي المستقل.',
-                      });
-                    }}
-                    className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                  >
-                    مسح الرابط
-                  </button>
-                )}
                 <button
                   type="submit"
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>حفظ رابط السيرفر السحابي</span>
+                  <span>حفظ إعدادات الربط بالشيت</span>
                 </button>
               </div>
             </div>
@@ -678,10 +776,17 @@ export const SettingsView: React.FC = () => {
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs text-slate-600">
             <div className="font-bold text-slate-800 flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>جداول وقواعد بيانات Google Sheets المربوطة:</span>
+              <span>أوراق العمل المربوطة لحظياً (Realtime Sheets):</span>
             </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              يحتوي مشروع الـ Apps Script على محرك مزامنة كامل (Router, SpreadsheetService, TimetableService, SettingsService) يقوم بحفظ واسترجاع الحصص الأسبوعية، أنصبة المعلمين، ما تم تدريسه، وروابط Google Drive بشكل مباشر مع الشيت المعتمد.
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {['Teachers', 'Subjects', 'Classes', 'SchoolBreaks', 'Labs', 'Workshops', 'TimetableSlots', 'TeachingRecords', 'SystemSettings'].map((sheet) => (
+                <span key={sheet} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-mono font-bold">
+                  {sheet}
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
+              يحتوي نظام المزامنة على محرك ثنائي الاتجاه: يتم حفظ أي تغيير فوري في النظام داخل الشيت، ويتم سحب أي تعديل مباشر في الشيت وتطبيقه في واجهة المستخدم تلقائياً.
             </p>
           </div>
         </div>
